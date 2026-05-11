@@ -421,8 +421,8 @@ The mockup is at \`chica/projects/facade-mockup/\`, running on localhost:5177. N
 
 	<!-- Main content — chat centered on full screen, not on remaining space -->
 	<div class="flex-1 flex flex-col" style="height: 100vh;">
-	<!-- Conversation area -->
-	<div class="flex-1 overflow-y-auto" style="background: var(--color-bg);">
+	<!-- Conversation area (scrollable) -->
+	<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 1rem;">
 		<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px 1fr; gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 
 			{#each messages as msg, msgIdx}
@@ -552,35 +552,36 @@ The mockup is at \`chica/projects/facade-mockup/\`, running on localhost:5177. N
 				{/if}
 				</div>
 			{/each}
-
-			<!-- Input bar: label cell -->
-			<div style="padding-top: calc(2rem + 0.5rem); text-align: left; align-self: start;">
-				<p style="color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">Boss</p>
-			</div>
-
-			<!-- Input bar: content cell -->
-			<div style="padding-top: 2rem; padding-bottom: 1rem;">
-				<div style="border-left: 2px solid var(--color-border);">
-					<div style="padding: 0.5rem 1rem 0.5rem 1rem; background: var(--color-bg-element);">
-						<textarea
-							bind:this={inputRef}
-							class="w-full bg-transparent outline-none resize-none"
-							rows="1"
-							placeholder="Ask anything..."
-							style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none;"
-						></textarea>
-						<div style="padding-top: 0.5rem; display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
-							<p style="color: var(--color-text-muted); font-size: 11px;">
-								Build &middot; DeepSeek V4 Flash &middot; OpenCode Go &middot; 186.3K (19%) &middot; high
-							</p>
-							<p style="color: var(--color-text-muted); font-size: 11px;">
-								$0.14/M input &middot; $0.28/M output &middot; tools
-							</p>
-						</div>
+		</div>
+	</div>
+	<!-- Input bar (fixed at bottom, outside scroll) -->
+	<div style="width: 100%; flex-shrink: 0;">
+	<div style="max-width: 570px; display: grid; grid-template-columns: 72px 1fr; gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
+		<div style="padding-top: calc(2rem + 0.5rem); text-align: left; align-self: start;">
+			<p style="color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">Boss</p>
+		</div>
+		<div style="padding-top: 2rem; padding-bottom: 1rem;">
+			<div style="border-left: 2px solid var(--color-border);">
+				<div style="padding: 0.5rem 1rem 0.5rem 1rem; background: var(--color-bg-element);">
+					<textarea
+						bind:this={inputRef}
+						class="w-full bg-transparent outline-none resize-none"
+						rows="1"
+						placeholder="Ask anything..."
+						style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none;"
+					></textarea>
+					<div style="padding-top: 0.5rem; display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
+						<p style="color: var(--color-text-muted); font-size: 11px;">
+							Build &middot; DeepSeek V4 Flash &middot; OpenCode Go &middot; 186.3K (19%) &middot; high
+						</p>
+						<p style="color: var(--color-text-muted); font-size: 11px;">
+							$0.14/M input &middot; $0.28/M output &middot; tools
+						</p>
 					</div>
 				</div>
 			</div>
 		</div>
+	</div>
 	</div>
 	</div>
 </div>
