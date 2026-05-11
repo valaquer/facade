@@ -83,7 +83,7 @@
 		"isomorphic-dompurify": "^3.8.0",
 		"json5": "^2.2.3",
 		"katex": "^0.16.21",
-		"marked": "^12.0.1",
+		"marked": "^18.0.3",
 		"mime-types": "^2.1.35",
 		"mongodb": "^5.8.0",
 		"nanoid": "^5.0.9",
