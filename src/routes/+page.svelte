@@ -96,20 +96,43 @@
 		expanded[idx] = !expanded[idx];
 	}
 
-	const sidebarTeammates: string[] = [];
-	const sidebarHuddles: string[] = [];
-	const allSidebarItems = [...sidebarTeammates, ...sidebarHuddles];
+	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" };
+
+	let sidebarItems = $state<SidebarItem[]>([]);
 	let selectedIndex = $state(0);
+
+	async function loadSidebar() {
+		try {
+			const res = await fetch("/api/rooms");
+			const data = await res.json();
+			const items: SidebarItem[] = [
+				...(data.teammates ?? []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name, kind: "teammate" as const })),
+				...(data.huddles ?? []).map((h: { id: string; title: string }) => ({ id: h.id, name: h.title, kind: "huddle" as const })),
+			];
+			sidebarItems = items;
+			if (selectedIndex >= items.length) selectedIndex = 0;
+		} catch {
+			sidebarItems = [];
+		}
+	}
+
+	$effect(() => {
+		loadSidebar();
+		const interval = setInterval(loadSidebar, 5000);
+		return () => clearInterval(interval);
+	});
 
 	let inputRef: HTMLTextAreaElement | undefined = $state();
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.ctrlKey && e.key === 'ArrowDown') {
 			e.preventDefault();
-			selectedIndex = (selectedIndex + 1) % allSidebarItems.length;
+			if (sidebarItems.length === 0) return;
+			selectedIndex = (selectedIndex + 1) % sidebarItems.length;
 		} else if (e.ctrlKey && e.key === 'ArrowUp') {
 			e.preventDefault();
-			selectedIndex = (selectedIndex - 1 + allSidebarItems.length) % allSidebarItems.length;
+			if (sidebarItems.length === 0) return;
+			selectedIndex = (selectedIndex - 1 + sidebarItems.length) % sidebarItems.length;
 		} else if (e.key === 'Enter' && !e.shiftKey && document.activeElement !== inputRef) {
 			e.preventDefault();
 			inputRef?.focus();
@@ -129,28 +152,14 @@
 		<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
 			<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
 		</div>
-		<!-- Teammate list -->
+		<!-- Sidebar list -->
 		<div style="flex: 1; overflow-y: auto; padding: 0.5rem 0;">
-			{#each sidebarTeammates as name, i}
+			{#each sidebarItems as item, i}
 				<div
 					onclick={() => selectedIndex = i}
 					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === i ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === i ? 'var(--color-bg-element)' : 'transparent'};"
 				>
-					{name}
-				</div>
-			{/each}
-			<div style="height: 4rem;"></div>
-			<div style="padding: 0 1rem;">
-				<p style="padding-left: 0.5rem; font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
-			</div>
-			<div style="margin: 0.5rem 1rem; border-bottom: 1px solid var(--color-bg-step4);"></div>
-			{#each sidebarHuddles as huddle, i}
-				{@const idx = sidebarTeammates.length + i}
-				<div
-					onclick={() => selectedIndex = idx}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === idx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === idx ? 'var(--color-bg-element)' : 'transparent'};"
-				>
-					{huddle}
+					{item.name}
 				</div>
 			{/each}
 		</div>

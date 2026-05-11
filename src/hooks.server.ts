@@ -4,10 +4,12 @@ import { initServer } from "$lib/server/hooks/init";
 import { handleRequest } from "$lib/server/hooks/handle";
 import { handleServerError } from "$lib/server/hooks/error";
 import { handleFetchRequest } from "$lib/server/hooks/fetch";
+import { startRoomSync } from "$lib/server/room-sync";
 
 export const init: ServerInit = async () => {
 	if (building) return;
-	return initServer();
+	await initServer();
+	startRoomSync();
 };
 
 export const handle: Handle = async (input) => {
