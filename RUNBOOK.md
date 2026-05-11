@@ -67,7 +67,8 @@ Opens at http://localhost:5173.
 
 | REQ # | Date | Description | Status | Notes |
 |-------|------|-------------|--------|-------|
-| | | | | |
+| UI-1 | 2026-05-11 | Chica's pixel-perfect mockup UI into Facade codebase (app.css, layout, page with all example content, markdown rendering, sidebar, input bar, keyboard shortcuts) | DONE | marked v12→v18, Tailwind v4→v3 syntax. Boss visual verified. |
+| REQ-2 | 2026-05-11 | Fixed input bar at bottom, conversation scrolls independently | DONE | Input bar moved outside scrollable div. Width adjusted during visual review. Boss verified. |
 
 ## KNOWN ISSUES
 
