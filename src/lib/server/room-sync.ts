@@ -2,7 +2,7 @@ import { getActiveTeammatesFromKitty } from "./kitten";
 import { getActiveTeammates, activateTeammate, deactivateTeammate } from "./active-teammates";
 import { emitEvent } from "./events";
 
-const POLL_INTERVAL = 10000;
+const POLL_INTERVAL = 3000;
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 

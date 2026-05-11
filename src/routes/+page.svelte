@@ -116,10 +116,19 @@
 		}
 	}
 
-	$effect(() => {
+	let eventSource: EventSource | undefined;
+
+	onMount(() => {
 		loadSidebar();
-		const interval = setInterval(loadSidebar, 5000);
-		return () => clearInterval(interval);
+		eventSource = new EventSource("/api/events");
+		eventSource.onmessage = () => {
+			loadSidebar();
+		};
+	});
+
+	import { onDestroy } from "svelte";
+	onDestroy(() => {
+		eventSource?.close();
 	});
 
 	let inputRef: HTMLTextAreaElement | undefined = $state();
