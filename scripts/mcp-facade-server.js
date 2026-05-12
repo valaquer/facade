@@ -20,7 +20,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 	tools: [
 		{
 			name: "post_to_facade",
-			description: "Post a message to Boss in Facade",
+			description: "Post a message to your Facade room from your Kitty tab",
 			inputSchema: {
 				type: "object",
 				properties: {
