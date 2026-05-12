@@ -39,6 +39,42 @@ async function discoverSocket(): Promise<string | null> {
 	return null;
 }
 
+export async function sendToKitty(teammate: string, text: string): Promise<string> {
+	const socket = await discoverSocket();
+	if (!socket) return "no_socket";
+
+	try {
+		const execFileAsyncBound = execFileAsync;
+		await execFileAsyncBound(
+			KITTEN,
+			[
+				"@",
+				"--to",
+				socket,
+				"send-text",
+				"--match",
+				`var:teammate=${teammate}`,
+				"--bracketed-paste",
+				"disable",
+				text,
+			],
+			{ timeout: 5000 }
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+
+		await execFileAsyncBound(
+			KITTEN,
+			["@", "--to", socket, "send-key", "--match", `var:teammate=${teammate}`, "enter"],
+			{ timeout: 3000 }
+		);
+
+		return "delivered";
+	} catch (err) {
+		return `error: ${err instanceof Error ? err.message : String(err)}`;
+	}
+}
+
 export async function getActiveTeammatesFromKitty(): Promise<string[]> {
 	const socket = await discoverSocket();
 	if (!socket) return [];
