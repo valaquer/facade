@@ -215,6 +215,8 @@ Same flow in reverse for tab close (deactivateTeammate → SSE → sidebar updat
 | REQ-003 | Wipe sample data — empty state | Shipped |
 | REQ-004 | Kitty lifecycle mirror — teammate opens/closes in sidebar | Shipped |
 | REQ-005 | SSE push replacing browser polling for instant updates | Shipped |
+| REQ-006 | Facade auto-start/stop with Kitty lifecycle + port 51730 + notify_facade cleanup | Pending lifecycle test |
+| REQ-007 | Boss→Kitty messaging — POST /api/message, kitten send-text, SSE echo, conversation view | Shipped |
 
 ## Conventions
 
