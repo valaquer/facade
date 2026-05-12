@@ -85,9 +85,6 @@
 				body: JSON.stringify({ sender: "boss", body: content, room: selectedConvId }),
 			});
 			if (res.ok) {
-				const msg = await res.json();
-				conversations[selectedConvId] = [...(conversations[selectedConvId] ?? []), msg];
-				conversations = conversations;
 				setTimeout(scrollToBottom, 50);
 			}
 		} catch {
@@ -206,6 +203,7 @@
 							<textarea
 								bind:value={newMessage}
 								bind:this={inputRef}
+								onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
 								class="w-full bg-transparent outline-none resize-none"
 								rows="1"
 								placeholder="Type a message..."

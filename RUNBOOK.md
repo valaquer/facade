@@ -80,7 +80,8 @@ Opens at http://localhost:5173.
 
 | REQ # | Attempt | What Was Tried | Why It Failed | Root Cause |
 |-------|---------|---------------|---------------|------------|
-| | | | | |
+| REQ-7 | 1 | Full round-trip messaging (Boss→Kitty + teammate→Facade MCP) | Boss typed message in Rio's Facade tab, hit Enter, message disappeared — not rendered in conversation view | textarea Enter key inserted newline instead of submitting — no onkeydown handler. Fixed. |
+| REQ-7 | 2 | Scope narrowed to Boss→Kitty only. Enter fix applied. | Boss message renders but appears twice in conversation area — duplicate rendering | Likely: message added to local array on send AND again on SSE echo. Natalie investigating. |
 
 ---
 
