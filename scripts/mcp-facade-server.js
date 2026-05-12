@@ -20,11 +20,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 	tools: [
 		{
 			name: "post_to_facade",
-			description: "Post a message to your Facade room from your Kitty tab",
+			description: "Post a message to a Facade room from your Kitty tab",
 			inputSchema: {
 				type: "object",
 				properties: {
 					body: { type: "string", description: "The message content" },
+					room: { type: "string", description: "Target room (default: your own room)" },
 				},
 				required: ["body"],
 			},
@@ -37,7 +38,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 		throw new Error(`Unknown tool: ${request.params.name}`);
 	}
 
-	const body = String(request.params.arguments?.body ?? "");
+	const args = request.params.arguments ?? {};
+	const body = String(args.body ?? "");
+	const room = String(args.room ?? ROOM);
 	if (!body) {
 		return { content: [{ type: "text", text: "Error: body is required" }] };
 	}
@@ -46,7 +49,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 		const res = await fetch(`${FACADE_URL}/api/message`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ sender: SENDER, body, room: ROOM }),
+			body: JSON.stringify({ sender: SENDER, body, room }),
 		});
 
 		if (!res.ok) {
