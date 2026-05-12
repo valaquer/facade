@@ -144,34 +144,81 @@ Utilities: `marked.ts`, `parseBlocks.ts`, `parseIncompleteMarkdown.ts`.
 Essential for readable teammate communication (code snippets, formatted messages).
 
 
-## Architecture
+## Built Architecture (Facade-specific)
+
+Everything in this section is custom code added on top of the upstream HF fork.
+These files are ours — modify freely.
 
 ### Stack
 
-- SvelteKit 2 + Svelte 5 (runes: $state, $effect, $props)
-- MongoDB for persistence (auto-fallback to MongoMemoryServer)
-- TailwindCSS for styling
+- SvelteKit 2 + Svelte 5 (runes: $state, $effect, $props, $derived)
+- TailwindCSS v3 for styling
+- JetBrains Mono (Google Fonts CDN) — 300 weight, 12px, 1.8 line-height
+- `marked` library for markdown rendering (GFM enabled)
+- No database yet — state lives in `/tmp/facade-active-teammates.json`
+- No auth required — localhost only
 
-### Key Directories
+### UI Layer (Chica's spec, pixel-perfect)
+
+| File | Purpose |
+|---|---|
+| `src/app.css` | All theme variables, markdown styles (Obsidianite gradients), diff rendering, code blocks |
+| `src/routes/+layout.svelte` | Root layout — imports app.css, JetBrains Mono font, renders children |
+| `src/routes/+page.svelte` | Main chat UI: sidebar, message grid (72px+1fr, 570px), input bar, markdown rendering |
+
+Design constants:
+- Font: JetBrains Mono, weight 300, 12px, line-height 1.8
+- Text color: `#CDCCC2`, muted: `#808080`
+- Content width: 570px max, grid columns: 72px label + 1fr content
+- Background: `#0a0a0a`, panels: `#141414`, elements: `#1e1e1e`
+- Sidebar: 280px, `#141414` bg, `#282828` border
+- Input bar: 2px `#484848` left border, `#1e1e1e` bg
+- Markdown gradients: blue-to-purple (`#5c9cf5` → `#9d7cd8`) on headings/bold/blockquotes
+- Keyboard shortcuts: Ctrl+Up/Down (sidebar nav), Enter (focus input), Escape (blur input)
+
+### Server Layer (Kitty lifecycle mirror)
+
+| File | Purpose |
+|---|---|
+| `src/lib/server/kitten.ts` | Discovers Kitty socket (`KITTY_LISTEN_ON` or `/tmp/honeybloom-kitty-*.sock`), parses `kitten @ ls` JSON, extracts teammate names from `window.user_vars.teammate` |
+| `src/lib/server/active-teammates.ts` | JSON file state at `/tmp/facade-active-teammates.json`. Export: `activateTeammate()`, `deactivateTeammate()`, `getActiveTeammates()` |
+| `src/lib/server/events.ts` | Wraps Node.js EventEmitter. Export: `emitEvent()`, `onEvent()`. Used for SSE push. |
+| `src/lib/server/room-sync.ts` | Polls `getActiveTeammatesFromKitty()` every 3s. Compares with active state. Calls `emitEvent()` on changes. Bootstrapped in `hooks.server.ts:init()`. |
+
+### API Layer
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/rooms` | GET | Returns active teammates + huddles from JSON state |
+| `/api/events` | GET | SSE stream — pushes events when room state changes |
+
+### Data Flow
 
 ```
-src/
-├── lib/
-│   ├── components/       # Svelte components
-│   ├── server/           # Server-side modules
-│   │   ├── auth.ts       # DROP — authentication
-│   │   ├── database.ts   # MongoDB collections
-│   │   ├── models.ts     # Model registry
-│   │   └── ...
-│   ├── stores/           # Svelte stores
-│   ├── types/            # TypeScript interfaces
-│   └── utils/            # Helpers
-├── routes/               # SvelteKit routes
-└── styles/               # CSS
+Kitty tab opens (kitten send-text --match "var:teammate=X")
+  → room-sync.ts polls kitten @ ls every 3s
+  → Detects new teammate, calls activateTeammate()
+  → emitEvent({ type: "huddle_update" })
+  → /api/events SSE stream pushes to browser
+  → +page.svelte EventSource receives event, calls loadSidebar()
+  → Sidebar re-renders with new teammate entry
 ```
+
+Same flow in reverse for tab close (deactivateTeammate → SSE → sidebar update).
+
+### REQ Log
+
+| REQ | Description | Status |
+|-----|-------------|--------|
+| REQ-000 | UI integration — Chica's mockup into Facade | Shipped |
+| REQ-002 | Fixed input bar position (outside scrollable area) | Shipped |
+| REQ-003 | Wipe sample data — empty state | Shipped |
+| REQ-004 | Kitty lifecycle mirror — teammate opens/closes in sidebar | Shipped |
+| REQ-005 | SSE push replacing browser polling for instant updates | Shipped |
 
 ## Conventions
 
 - No em dashes. En dash with spaces for dashes: "the app — built for privacy".
 - Follow existing patterns (Svelte 5 runes, Tailwind classes).
 - No comments unless explaining a non-obvious decision.
+- ARCHITECTURE.md is the source of truth. Update after every shipped REQ.
