@@ -197,8 +197,8 @@
 				<p style="font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
 			</div>
 		</div>
-		<div style="padding: 0.75rem 1rem; border-top: 1px dashed var(--color-bg-step4); font-size: 11px; color: var(--color-text-muted);">
-			provoque.ai
+		<div onclick={() => window.open('/markwhen-fork.html', '_blank')} style="padding: 0.75rem 1rem; border-top: 1px dashed var(--color-bg-step4); cursor: pointer; font-size: 11px; color: var(--color-text-muted);">
+			Fire up Markwhen
 		</div>
 	</div>
 
