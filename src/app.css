@@ -47,6 +47,8 @@
 
 	--font-sans: 'Inter', sans-serif;
 	--font-mono: 'JetBrains Mono', 'JetBrainsMono Nerd Font Mono', ui-monospace, monospace;
+
+	--gradient-accent: linear-gradient(90deg, #5c9cf5, #9d7cd8);
 }
 
 html, body {
