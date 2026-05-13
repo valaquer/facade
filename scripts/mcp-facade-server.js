@@ -56,7 +56,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 			return { content: [{ type: "text", text: `Error: Facade returned ${res.status}` }] };
 		}
 
-		return { content: [{ type: "text", text: "Message sent to Boss in Facade." }] };
+		return { content: [{ type: "text", text: `Message sent to room ${room}.` }] };
 	} catch (err) {
 		return {
 			content: [

@@ -2,7 +2,6 @@ import type { RequestHandler } from "./$types";
 import { sendToKitty } from "$lib/server/kitten";
 import { emitEvent } from "$lib/server/events";
 import { v4 } from "uuid";
-import { getActiveTeammates } from "$lib/server/active-teammates";
 
 interface StoredMessage {
 	id: string;
@@ -40,13 +39,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		timestamp: createdAt,
 	});
 
-	// If this is a Boss→teammate message, deliver to Kitty
-	if (sender === "boss") {
-		const targetTeammate = room.replace(/^direct-/, "").toLowerCase();
-		const active = getActiveTeammates();
-		if (active.includes(targetTeammate)) {
-			sendToKitty(targetTeammate, `[${sender}] ${body}`).catch(() => {});
-		}
+	// Deliver to the room owner's Kitty tab, unless the sender owns the room
+	const targetTeammate = room.replace(/^direct-/, "").toLowerCase();
+	if (targetTeammate !== sender) {
+		sendToKitty(targetTeammate, `[${sender}] ${body}`).catch(() => {});
 	}
 
 	return new Response(
