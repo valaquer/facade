@@ -4,10 +4,10 @@
 
 :root {
 	/* OpenCode "opencode" theme - dark mode palette */
-	--color-bg: #0a0a0a;
-	--color-bg-panel: #141414;
+	--color-bg: #0b0d10;
+	--color-bg-panel: #0e1114;
 	--color-bg-element: #1e1e1e;
-	--color-bg-step4: #282828;
+	--color-bg-step4: #282a30;
 	--color-bg-step5: #323232;
 	--color-bg-step6: #3c3c3c;
 	--color-border: #484848;
