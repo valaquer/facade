@@ -17,7 +17,7 @@ Layer 1 (universal module) and Layer 2 (failure pattern library) are symlinked f
 | Codebase | `/Users/d.patnaik/honeybloom/natalie/Facade/` |
 | Architecture | `ARCHITECTURE.md` in project root |
 | Deployment | localhost |
-| Port | 5173 |
+| Port | 51730 |
 | Dev server | `npm run dev` |
 | Jira | TBD (Zara to cut epic) |
 
@@ -71,6 +71,8 @@ Opens at http://localhost:5173.
 | REQ-2 | 2026-05-11 | Fixed input bar at bottom, conversation scrolls independently | DONE | Input bar moved outside scrollable div. Width adjusted during visual review. Boss verified. |
 | REQ-12 | 2026-05-13 | Input bar text wrapping — autosize library, auto-grow textarea, word-wrap instead of horizontal overflow | DONE | 2 attempts: v1 failed (autosize called in onMount before textarea existed), v2 fixed (moved to $effect tracking inputRef). Boss visual verified. |
 | REQ-13 | 2026-05-13 | Remove sender guard — teammate-to-teammate Kitty delivery, unconditional forward with self-delivery guard | DONE | `sender === "boss"` removed from `/api/message`. Self-delivery guard: skip Kitty forward if target === sender. MCP response message updated. Boss B13 verified via Facade email round-trip. |
+| REQ-15 | 2026-05-13 | Input bar label "Boss" → "boss" | DONE | One-character change at +page.svelte:206. Boss visual verified. |
+| REQ-16 | 2026-05-13 | Sidebar architecture: three sections (Teammates, Huddles, Past Rooms), natural flow, 60px padding per section, scrollable container, provoque.ai footer | DONE | Split from flat list to natural-flow layout. Each section has gradient header + border-bottom divider + content area with 60px padding-bottom. Sidebar scrolls on overflow. |
 
 ## KNOWN ISSUES
 

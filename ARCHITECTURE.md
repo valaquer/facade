@@ -171,7 +171,7 @@ Design constants:
 - Text color: `#CDCCC2`, muted: `#808080`
 - Content width: 570px max, grid columns: 72px label + 1fr content
 - Background: `#0a0a0a`, panels: `#141414`, elements: `#1e1e1e`
-- Sidebar: 280px, `#141414` bg, `#282828` border
+- Sidebar: 280px, `#141414` bg, `#282828` border, three-section layout (Teammates, Huddles, Past Rooms) with gradient headers and 60px padding-bottom per section
 - Input bar: 2px `#484848` left border, `#1e1e1e` bg
 - Markdown gradients: blue-to-purple (`#5c9cf5` → `#9d7cd8`) on headings/bold/blockquotes
 - Keyboard shortcuts: Ctrl+Up/Down (sidebar nav), Enter (focus input), Escape (blur input)
@@ -233,6 +233,8 @@ Same flow in reverse for tab close (deactivateTeammate → SSE → sidebar updat
 | REQ-007 | Boss→Kitty messaging — POST /api/message, kitten send-text, SSE echo, conversation view | Shipped |
 | REQ-012 | Input bar text wrapping — autosize library, auto-grow textarea, word-wrap instead of horizontal overflow | Shipped |
 | REQ-013 | Sender guard removal — teammate-to-teammate Kitty delivery, unconditional forward | Shipped |
+| REQ-015 | Input bar label "Boss" → "boss" | Shipped |
+| REQ-016 | Sidebar architecture: 3-section layout (Teammates, Huddles, Past Rooms), natural flow, 60px section padding, scrollable | Shipped |
 
 ## Conventions
 
