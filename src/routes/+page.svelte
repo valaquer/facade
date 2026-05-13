@@ -78,7 +78,6 @@
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
 		newMessage = "";
-		if (inputRef) autosize.update(inputRef);
 
 		try {
 			const res = await fetch("/api/message", {
@@ -92,6 +91,8 @@
 		} catch {
 			// ignore send errors
 		}
+
+		if (inputRef && !newMessage) inputRef.style.height = "";
 	}
 
 	onMount(() => {
