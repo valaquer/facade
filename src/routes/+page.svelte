@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { marked } from 'marked';
 	import { onMount, onDestroy } from 'svelte';
+	import autosize from 'autosize';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -77,6 +78,7 @@
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
 		newMessage = "";
+		if (inputRef) autosize.update(inputRef);
 
 		try {
 			const res = await fetch("/api/message", {
@@ -125,6 +127,13 @@
 	});
 
 	let inputRef: HTMLTextAreaElement | undefined = $state();
+
+	$effect(() => {
+		if (inputRef) {
+			autosize(inputRef);
+			return () => autosize.destroy(inputRef);
+		}
+	});
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.ctrlKey && e.key === 'ArrowDown') {
@@ -207,7 +216,7 @@
 								class="w-full bg-transparent outline-none resize-none"
 								rows="1"
 								placeholder="Type a message..."
-								style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none;"
+								style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none; max-height: 200px;"
 							></textarea>
 							<div style="padding-top: 0.5rem; display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
 								<button
