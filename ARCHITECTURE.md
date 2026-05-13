@@ -244,6 +244,7 @@ Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the 
 | REQ-019 | Dashed borders — all section dividers, provoque.ai footer, and input box use 1px dashed var(--color-bg-step4) | Shipped |
 | REQ-020 | Sidebar section headers font changed to Inter | Shipped |
 | REQ-021 | Sidebar teammate name fonts changed to system-ui | Shipped |
+| REQ-022 | Chat sender labels font changed to Inter | Shipped |
 
 ## Conventions
 
