@@ -171,7 +171,7 @@ Design constants:
 - Text color: `#CDCCC2`, muted: `#808080`
 - Content width: 570px max, grid columns: 72px label + 1fr content
 - Background: `#0b0d10` (premium black), panels: `#0e1114`, elements: `#1e1e1e`, dividers: `#282a30`
-- Sidebar: 280px, `#0e1114` bg, dashed `#282a30` border, three-section layout. Section headers in Inter font. Teammate names in system-ui font. (Teammates, Huddles, Past Rooms) with gradient headers and 60px padding-bottom per section. Huddle rooms read from `/tmp/kitty-huddles.json` (MCP huddle server state) with host name + participant list. Teammate and huddle names are lowercase.
+- Sidebar: 280px, `#0e1114` bg, dashed `#282a30` border, three-section layout. Section headers in Inter. Teammate names in system-ui. Chat sender labels in Inter. (Teammates, Huddles, Past Rooms) with gradient headers and 60px padding-bottom per section. Huddle rooms read from `/tmp/kitty-huddles.json` (MCP huddle server state) with host name + participant list. Teammate and huddle names are lowercase.
 - Input bar: 1px dashed `#282a30` border, `#1e1e1e` bg
 - Markdown gradients: blue-to-purple (`#5c9cf5` → `#9d7cd8`) on headings/bold/blockquotes
 - Keyboard shortcuts: Ctrl+Up/Down (sidebar nav), Enter (focus input), Escape (blur input)
@@ -243,6 +243,7 @@ Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the 
 | REQ-018 | Premium black palette — `--color-bg: #0b0d10`, `--color-bg-panel: #0e1114`, `--color-bg-step4: #282a30`, sidebar border-right dashed | Shipped |
 | REQ-019 | Dashed borders — all section dividers, provoque.ai footer, and input box use 1px dashed var(--color-bg-step4) | Shipped |
 | REQ-020 | Sidebar section headers font changed to Inter | Shipped |
+| REQ-021 | Sidebar teammate name fonts changed to system-ui | Shipped |
 
 ## Conventions
 
