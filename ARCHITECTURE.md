@@ -172,7 +172,7 @@ Design constants:
 - Content width: 570px max, grid columns: 72px label + 1fr content
 - Background: `#0b0d10` (premium black), panels: `#0e1114`, elements: `#1e1e1e`, dividers: `#282a30`
 - Sidebar: 280px, `#0e1114` bg, dashed `#282a30` border, three-section layout. Section headers in Inter. Teammate names in system-ui. Chat sender labels in Inter. (Teammates, Huddles, Past Rooms) with gradient headers and 60px padding-bottom per section. Huddle rooms read from `/tmp/kitty-huddles.json` (MCP huddle server state) with host name + participant list. Teammate and huddle names are lowercase.
-- Input bar: 1px dashed `#282a30` border, `#1e1e1e` bg
+- Input bar: 1px dashed `#282a30` border with 2px `#5A3E2E` (copper) left border, `#1e1e1e` bg. Boss messages also get 2px `#5A3E2E` left border.
 - Markdown gradients: blue-to-purple (`#5c9cf5` → `#9d7cd8`) on headings/bold/blockquotes
 - Keyboard shortcuts: Ctrl+Up/Down (sidebar nav), Enter (focus input), Escape (blur input)
 
@@ -246,6 +246,7 @@ Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the 
 | REQ-021 | Sidebar teammate name fonts changed to system-ui | Shipped |
 | REQ-022 | Chat sender labels font changed to Inter | Shipped |
 | REQ-023 | Remove Send button, spacer preserves input bar height | Shipped |
+| REQ-024 | 2px #5A3E2E copper left border on input box and boss messages | Shipped |
 
 ## Conventions
 
