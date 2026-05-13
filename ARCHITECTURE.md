@@ -224,6 +224,10 @@ Same flow in reverse for tab close (deactivateTeammate → SSE → sidebar updat
 
 Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the state file written by the huddle MCP server (Chica's `mcp-huddle/server-huddle.py`). The `/api/rooms` endpoint maps each entry to a huddle sidebar item with the host name and participant list. SSE-driven sidebar refresh picks up new huddles automatically when `loadSidebar()` is called on `huddle_update` events.
 
+### Huddle Message Flow
+
+Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/message` endpoint detects huddle rooms (room ID starts with `huddle-`), reads `/tmp/kitty-huddles.json`, and delivers via `sendToKitty` to every member except the sender.
+
 ### REQ Log
 
 | REQ | Description | Status |
@@ -248,6 +252,7 @@ Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the 
 | REQ-023 | Remove Send button, spacer preserves input bar height | Shipped |
 | REQ-024 | 2px #5A3E2E copper left border on input box and boss messages | Shipped |
 | REQ-025 | "Fire up Markwhen" button in sidebar, symlinks markwhen-fork.html + dist/ into static/, replaces provoque.ai footer | Shipped |
+| REQ-026 | Fan-out delivery from huddle rooms — messages to huddle-{host} deliver to all members' Kitty tabs | Shipped |
 
 ## Conventions
 
