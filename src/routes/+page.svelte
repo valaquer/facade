@@ -61,9 +61,6 @@
 				...(data.teammates ?? []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name, kind: "teammate" as const })),
 				...(data.huddles ?? []).map((h: { id: string; title: string }) => ({ id: h.id, name: h.title, kind: "huddle" as const })),
 			];
-			if (items.filter((i) => i.kind === "huddle").length === 0) {
-				items.push({ id: "huddle-example", name: "huddle-20260511-141526-natalie", kind: "huddle" as const });
-			}
 			sidebarItems = items;
 			if (selectedIndex >= items.length) selectedIndex = 0;
 		} catch {
