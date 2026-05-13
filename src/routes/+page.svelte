@@ -78,7 +78,7 @@
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
 		newMessage = "";
-		if (inputRef) autosize.update(inputRef);
+		inputRef?.dispatchEvent(new Event('input', { bubbles: true }));
 
 		try {
 			const res = await fetch("/api/message", {
