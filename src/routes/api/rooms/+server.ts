@@ -15,7 +15,7 @@ export const GET: RequestHandler = async () => {
 
 	const teammates = active.map((name) => ({
 		id: `direct-${name}`,
-		name: name.charAt(0).toUpperCase() + name.slice(1),
+		name,
 		teammate: name,
 		lastActivity: new Date().toISOString(),
 	}));
