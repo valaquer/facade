@@ -171,7 +171,7 @@ Design constants:
 - Text color: `#CDCCC2`, muted: `#808080`
 - Content width: 570px max, grid columns: 72px label + 1fr content
 - Background: `#0a0a0a`, panels: `#141414`, elements: `#1e1e1e`
-- Sidebar: 280px, `#141414` bg, `#282828` border, three-section layout (Teammates, Huddles, Past Rooms) with gradient headers and 60px padding-bottom per section
+- Sidebar: 280px, `#141414` bg, `#282828` border, three-section layout (Teammates, Huddles, Past Rooms) with gradient headers and 60px padding-bottom per section. Huddle rooms read from `/tmp/kitty-huddles.json` (MCP huddle server state) with host name + participant list. Teammate and huddle names are lowercase.
 - Input bar: 2px `#484848` left border, `#1e1e1e` bg
 - Markdown gradients: blue-to-purple (`#5c9cf5` → `#9d7cd8`) on headings/bold/blockquotes
 - Keyboard shortcuts: Ctrl+Up/Down (sidebar nav), Enter (focus input), Escape (blur input)
@@ -220,6 +220,10 @@ Kitty tab opens (kitten send-text --match "var:teammate=X")
 
 Same flow in reverse for tab close (deactivateTeammate → SSE → sidebar update).
 
+### Huddle Rooms
+
+Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the state file written by the huddle MCP server (Chica's `mcp-huddle/server-huddle.py`). The `/api/rooms` endpoint maps each entry to a huddle sidebar item with the host name and participant list. SSE-driven sidebar refresh picks up new huddles automatically when `loadSidebar()` is called on `huddle_update` events.
+
 ### REQ Log
 
 | REQ | Description | Status |
@@ -235,6 +239,7 @@ Same flow in reverse for tab close (deactivateTeammate → SSE → sidebar updat
 | REQ-013 | Sender guard removal — teammate-to-teammate Kitty delivery, unconditional forward | Shipped |
 | REQ-015 | Input bar label "Boss" → "boss" | Shipped |
 | REQ-016 | Sidebar architecture: 3-section layout (Teammates, Huddles, Past Rooms), natural flow, 60px section padding, scrollable | Shipped |
+| REQ-017 | Huddle rooms in sidebar — reads `/tmp/kitty-huddles.json`, shows host name + participants in compact layout; teammate names lowercase | Shipped |
 
 ## Conventions
 
