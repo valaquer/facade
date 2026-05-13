@@ -247,6 +247,7 @@ Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the 
 | REQ-022 | Chat sender labels font changed to Inter | Shipped |
 | REQ-023 | Remove Send button, spacer preserves input bar height | Shipped |
 | REQ-024 | 2px #5A3E2E copper left border on input box and boss messages | Shipped |
+| REQ-025 | "Fire up Markwhen" button in sidebar, symlinks markwhen-fork.html + dist/ into static/, replaces provoque.ai footer | Shipped |
 
 ## Conventions
 
