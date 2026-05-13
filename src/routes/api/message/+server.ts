@@ -2,6 +2,9 @@ import type { RequestHandler } from "./$types";
 import { sendToKitty } from "$lib/server/kitten";
 import { emitEvent } from "$lib/server/events";
 import { v4 } from "uuid";
+import fs from "fs";
+
+const HUDDLE_STATE_FILE = "/tmp/kitty-huddles.json";
 
 interface StoredMessage {
 	id: string;
@@ -39,10 +42,30 @@ export const POST: RequestHandler = async ({ request }) => {
 		timestamp: createdAt,
 	});
 
-	// Deliver to the room owner's Kitty tab, unless the sender owns the room
-	const targetTeammate = room.replace(/^direct-/, "").toLowerCase();
-	if (targetTeammate !== sender) {
-		sendToKitty(targetTeammate, `[${sender}] ${body}`).catch(() => {});
+	// Fan-out for huddle rooms: deliver to all members
+	if (room.startsWith("huddle-")) {
+		const hostKey = room.replace("huddle-", "").toLowerCase();
+		try {
+			const raw = fs.readFileSync(HUDDLE_STATE_FILE, "utf-8");
+			const state = JSON.parse(raw);
+			const entry = state[hostKey];
+			if (entry) {
+				const members = [entry.host, ...entry.participants];
+				for (const m of members) {
+					if (m !== sender) {
+						sendToKitty(m, `[${sender}] ${body}`).catch(() => {});
+					}
+				}
+			}
+		} catch {
+			// huddle state file missing or corrupt — no delivery
+		}
+	} else {
+		// Deliver to the room owner's Kitty tab, unless the sender owns the room
+		const targetTeammate = room.replace(/^direct-/, "").toLowerCase();
+		if (targetTeammate !== sender) {
+			sendToKitty(targetTeammate, `[${sender}] ${body}`).catch(() => {});
+		}
 	}
 
 	return new Response(
