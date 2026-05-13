@@ -70,6 +70,7 @@ Opens at http://localhost:5173.
 | UI-1 | 2026-05-11 | Chica's pixel-perfect mockup UI into Facade codebase (app.css, layout, page with all example content, markdown rendering, sidebar, input bar, keyboard shortcuts) | DONE | marked v12→v18, Tailwind v4→v3 syntax. Boss visual verified. |
 | REQ-2 | 2026-05-11 | Fixed input bar at bottom, conversation scrolls independently | DONE | Input bar moved outside scrollable div. Width adjusted during visual review. Boss verified. |
 | REQ-12 | 2026-05-13 | Input bar text wrapping — autosize library, auto-grow textarea, word-wrap instead of horizontal overflow | DONE | 2 attempts: v1 failed (autosize called in onMount before textarea existed), v2 fixed (moved to $effect tracking inputRef). Boss visual verified. |
+| REQ-13 | 2026-05-13 | Remove sender guard — teammate-to-teammate Kitty delivery, unconditional forward with self-delivery guard | DONE | `sender === "boss"` removed from `/api/message`. Self-delivery guard: skip Kitty forward if target === sender. MCP response message updated. Boss B13 verified via Facade email round-trip. |
 
 ## KNOWN ISSUES
 

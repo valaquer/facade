@@ -191,6 +191,20 @@ Design constants:
 |---|---|---|
 | `/api/rooms` | GET | Returns active teammates + huddles from JSON state |
 | `/api/events` | GET | SSE stream — pushes events when room state changes |
+| `/api/message` | POST | Accepts `{ sender, room, body }`. Stores message, forwards to target's Kitty tab via `kitten send-text`. Self-delivery guard: skips Kitty forward if sender is the room owner (no self-echo). |
+
+### Message Flow (REQ-013)
+
+```
+Teammate A → post_to_facade(body="hello", room="direct-b")
+  → MCP server → POST /api/message { sender: "a", room: "direct-b", body: "hello" }
+  → Server stores message, emits SSE event for Facade UI
+  → Target check: room owner "b" !== sender "a" → deliver to Kitty
+  → sendToKitty("b", "[a] hello")
+  → Teammate B's Kitty tab receives the message as typed input
+```
+
+Same flow applies for Boss → teammate (sender="boss" is no longer hardcoded — the self-delivery guard handles all senders uniformly).
 
 ### Data Flow
 
@@ -218,6 +232,7 @@ Same flow in reverse for tab close (deactivateTeammate → SSE → sidebar updat
 | REQ-006 | Facade auto-start/stop with Kitty lifecycle + port 51730 + notify_facade cleanup | Pending lifecycle test |
 | REQ-007 | Boss→Kitty messaging — POST /api/message, kitten send-text, SSE echo, conversation view | Shipped |
 | REQ-012 | Input bar text wrapping — autosize library, auto-grow textarea, word-wrap instead of horizontal overflow | Shipped |
+| REQ-013 | Sender guard removal — teammate-to-teammate Kitty delivery, unconditional forward | Shipped |
 
 ## Conventions
 
