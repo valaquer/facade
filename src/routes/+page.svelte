@@ -162,7 +162,7 @@
 	<!-- Sidebar -->
 	<div style="width: 280px; flex-shrink: 0; background: var(--color-bg-panel); border-right: 1px dashed var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh;">
 		<div style="flex: 1; overflow-y: auto;">
-			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
+			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
 				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
 			</div>
 			<div style="padding: 0.5rem 0 60px 0;">
@@ -176,7 +176,7 @@
 				{/each}
 			</div>
 
-			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
+			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
 				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
 			</div>
 			<div style="padding: 0.5rem 0 60px 0;">
@@ -193,11 +193,11 @@
 			{/each}
 			</div>
 
-			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
+			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
 				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
 			</div>
 		</div>
-		<div style="padding: 0.75rem 1rem; border-top: 1px solid var(--color-bg-step4); font-size: 11px; color: var(--color-text-muted);">
+		<div style="padding: 0.75rem 1rem; border-top: 1px dashed var(--color-bg-step4); font-size: 11px; color: var(--color-text-muted);">
 			provoque.ai
 		</div>
 	</div>
@@ -230,7 +230,7 @@
 			</div>
 			<div style="padding-top: 2rem; padding-bottom: 1rem;">
 				<form onsubmit={(e) => { e.preventDefault(); sendMessage(); }}>
-					<div style="border-left: 2px solid var(--color-border);">
+					<div style="border: 1px dashed var(--color-bg-step4);">
 						<div style="padding: 0.5rem 1rem 0.5rem 1rem; background: var(--color-bg-element);">
 							<textarea
 								bind:value={newMessage}
