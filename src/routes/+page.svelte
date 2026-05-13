@@ -163,7 +163,7 @@
 	<div style="width: 280px; flex-shrink: 0; background: var(--color-bg-panel); border-right: 1px dashed var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh;">
 		<div style="flex: 1; overflow-y: auto;">
 			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
-				<p style="font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-size: 150px 100%; background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
+				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
 			</div>
 			<div style="padding: 0.5rem 0 60px 0;">
 				{#each sidebarItems.filter((x) => x.kind === "teammate") as item}
@@ -177,7 +177,7 @@
 			</div>
 
 			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
-				<p style="font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-size: 150px 100%; background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
+				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
 			</div>
 			<div style="padding: 0.5rem 0 60px 0;">
 			{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
@@ -194,7 +194,7 @@
 			</div>
 
 			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
-				<p style="font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-size: 150px 100%; background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
+				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
 			</div>
 		</div>
 		<div onclick={() => window.open('/markwhen-fork.html', '_blank')} style="padding: 0.75rem 1rem; border-top: 1px dashed var(--color-bg-step4); cursor: pointer; font-size: 11px; color: var(--color-text-muted);">
