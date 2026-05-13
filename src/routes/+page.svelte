@@ -187,7 +187,7 @@
 				>
 					<div>{item.name}</div>
 					{#if item.participants?.length}
-						<div style="font-size: 9px; line-height: 1.2; color: #888;">{item.participants.join(', ')}</div>
+						<div style="font-size: 9px; line-height: 1.2; color: red;">{item.participants.join(', ')}</div>
 					{/if}
 				</div>
 			{/each}
