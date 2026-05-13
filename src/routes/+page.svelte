@@ -203,7 +203,7 @@
 		<div style="width: 100%; flex-shrink: 0;">
 		<div style="max-width: 570px; display: grid; grid-template-columns: 72px 1fr; gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 			<div style="padding-top: calc(2rem + 0.5rem); text-align: left; align-self: start;">
-				<p style="color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">Boss</p>
+				<p style="color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">boss</p>
 			</div>
 			<div style="padding-top: 2rem; padding-bottom: 1rem;">
 				<form onsubmit={(e) => { e.preventDefault(); sendMessage(); }}>
