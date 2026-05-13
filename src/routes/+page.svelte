@@ -241,13 +241,7 @@
 								placeholder="Type a message..."
 								style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none; max-height: 200px;"
 							></textarea>
-							<div style="padding-top: 0.5rem; display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
-								<button
-									type="submit"
-									disabled={!newMessage.trim()}
-									style="background-color: var(--color-accent); color: var(--color-bg); border: none; padding: 0.25rem 0.75rem; font-family: var(--font-mono); font-size: 11px; cursor: pointer; border-radius: 2px;"
-								>Send</button>
-							</div>
+							<div style="height: 29px;"></div>
 						</div>
 					</div>
 				</form>
