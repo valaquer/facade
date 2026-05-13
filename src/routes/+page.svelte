@@ -61,6 +61,9 @@
 				...(data.teammates ?? []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name, kind: "teammate" as const })),
 				...(data.huddles ?? []).map((h: { id: string; title: string }) => ({ id: h.id, name: h.title, kind: "huddle" as const })),
 			];
+			if (items.filter((i) => i.kind === "huddle").length === 0) {
+				items.push({ id: "huddle-example", name: "huddle-20260511-141526-natalie", kind: "huddle" as const });
+			}
 			sidebarItems = items;
 			if (selectedIndex >= items.length) selectedIndex = 0;
 		} catch {
@@ -165,14 +168,32 @@
 			<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
 		</div>
 		<div style="flex: 1; overflow-y: auto; padding: 0.5rem 0;">
-			{#each sidebarItems as item, i}
+			{#each sidebarItems.filter((x) => x.kind === "teammate") as item}
 				<div
-					onclick={() => selectedIndex = i}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === i ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === i ? 'var(--color-bg-element)' : 'transparent'};"
+					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
+					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
 				>
 					{item.name}
 				</div>
 			{/each}
+		</div>
+		<div style="padding-top: 60px; border-top: 1px solid var(--color-bg-step4);">
+			<div style="padding: 0.75rem 1rem 0.25rem 1.5rem;">
+				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
+			</div>
+			{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
+				<div
+					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
+					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
+				>
+					{item.name}
+				</div>
+			{/each}
+		</div>
+		<div style="padding-top: 60px; border-top: 1px solid var(--color-bg-step4);">
+			<div style="padding: 0.75rem 1rem 0.25rem 1.5rem;">
+				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
+			</div>
 		</div>
 		<div style="padding: 0.75rem 1rem; border-top: 1px solid var(--color-bg-step4); font-size: 11px; color: var(--color-text-muted);">
 			provoque.ai
