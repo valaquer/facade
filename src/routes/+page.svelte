@@ -183,11 +183,11 @@
 			{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
 				<div
 					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
+					style="padding: 4px 1rem 4px 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
 				>
 					<div>{item.name}</div>
 					{#if item.participants?.length}
-						<div style="font-size: 11px; color: var(--color-text-muted); margin-top: 2px;">{item.participants.join(', ')}</div>
+						<div style="font-size: 9px; line-height: 1.2; color: #666;">{item.participants.join(', ')}</div>
 					{/if}
 				</div>
 			{/each}
