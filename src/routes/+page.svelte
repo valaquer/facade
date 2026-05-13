@@ -41,7 +41,7 @@
 		});
 	});
 
-	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" };
+	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle"; participants?: string[] };
 	type ChatMsg = { id: string; sender: string; content: string; createdAt: string };
 
 	let sidebarItems = $state<SidebarItem[]>([]);
@@ -59,7 +59,7 @@
 			const data = await res.json();
 			const items: SidebarItem[] = [
 				...(data.teammates ?? []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name, kind: "teammate" as const })),
-				...(data.huddles ?? []).map((h: { id: string; title: string }) => ({ id: h.id, name: h.title, kind: "huddle" as const })),
+				...(data.huddles ?? []).map((h: { id: string; name: string; host: string; participants: string[] }) => ({ id: h.id, name: h.name, kind: "huddle" as const, participants: h.participants })),
 			];
 			sidebarItems = items;
 			if (selectedIndex >= items.length) selectedIndex = 0;
@@ -180,14 +180,17 @@
 				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
 			</div>
 			<div style="padding: 0.5rem 0 60px 0;">
-				{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
-					<div
-						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
-					>
-						{item.name}
-					</div>
-				{/each}
+			{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
+				<div
+					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
+					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
+				>
+					<div>{item.name}</div>
+					{#if item.participants?.length}
+						<div style="font-size: 11px; color: var(--color-text-muted); margin-top: 2px;">{item.participants.join(', ')}</div>
+					{/if}
+				</div>
+			{/each}
 			</div>
 
 			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
