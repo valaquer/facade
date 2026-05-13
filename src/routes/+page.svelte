@@ -164,34 +164,40 @@
 <div class="h-full flex">
 	<!-- Sidebar -->
 	<div style="width: 280px; flex-shrink: 0; background: var(--color-bg-panel); border-right: 1px solid var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh;">
-		<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
-			<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
-		</div>
-		<div style="flex: 1; overflow-y: auto; padding: 0.5rem 0;">
-			{#each sidebarItems.filter((x) => x.kind === "teammate") as item}
-				<div
-					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
-				>
-					{item.name}
-				</div>
-			{/each}
-		</div>
-		<div style="padding-top: 60px; border-top: 1px solid var(--color-bg-step4);">
-			<div style="padding: 0.75rem 1rem 0.25rem 1.5rem;">
+		<div style="flex: 1; overflow-y: auto;">
+			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
+				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
+			</div>
+			<div style="padding: 0.5rem 0;">
+				{#each sidebarItems.filter((x) => x.kind === "teammate") as item}
+					<div
+						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
+					>
+						{item.name}
+					</div>
+				{/each}
+			</div>
+
+			<div style="height: 60px;"></div>
+
+			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
 				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
 			</div>
-			{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
-				<div
-					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
-				>
-					{item.name}
-				</div>
-			{/each}
-		</div>
-		<div style="padding-top: 60px; border-top: 1px solid var(--color-bg-step4);">
-			<div style="padding: 0.75rem 1rem 0.25rem 1.5rem;">
+			<div style="padding: 0.5rem 0;">
+				{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
+					<div
+						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
+					>
+						{item.name}
+					</div>
+				{/each}
+			</div>
+
+			<div style="height: 60px;"></div>
+
+			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
 				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
 			</div>
 		</div>
