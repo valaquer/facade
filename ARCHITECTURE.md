@@ -245,6 +245,7 @@ Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the 
 | REQ-020 | Sidebar section headers font changed to Inter | Shipped |
 | REQ-021 | Sidebar teammate name fonts changed to system-ui | Shipped |
 | REQ-022 | Chat sender labels font changed to Inter | Shipped |
+| REQ-023 | Remove Send button, spacer preserves input bar height | Shipped |
 
 ## Conventions
 
