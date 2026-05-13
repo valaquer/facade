@@ -165,7 +165,7 @@
 			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
 				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
 			</div>
-			<div style="padding: 0.5rem 0;">
+			<div style="padding: 0.5rem 0 60px 0;">
 				{#each sidebarItems.filter((x) => x.kind === "teammate") as item}
 					<div
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
@@ -176,12 +176,10 @@
 				{/each}
 			</div>
 
-			<div style="height: 60px;"></div>
-
 			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
 				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
 			</div>
-			<div style="padding: 0.5rem 0;">
+			<div style="padding: 0.5rem 0 60px 0;">
 				{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
 					<div
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
@@ -191,8 +189,6 @@
 					</div>
 				{/each}
 			</div>
-
-			<div style="height: 60px;"></div>
 
 			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px solid var(--color-bg-step4);">
 				<p style="font-size: 13px; font-weight: 500; background: linear-gradient(90deg, #5c9cf5, #9d7cd8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
