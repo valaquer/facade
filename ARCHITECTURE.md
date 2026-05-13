@@ -217,6 +217,7 @@ Same flow in reverse for tab close (deactivateTeammate → SSE → sidebar updat
 | REQ-005 | SSE push replacing browser polling for instant updates | Shipped |
 | REQ-006 | Facade auto-start/stop with Kitty lifecycle + port 51730 + notify_facade cleanup | Pending lifecycle test |
 | REQ-007 | Boss→Kitty messaging — POST /api/message, kitten send-text, SSE echo, conversation view | Shipped |
+| REQ-012 | Input bar text wrapping — autosize library, auto-grow textarea, word-wrap instead of horizontal overflow | Shipped |
 
 ## Conventions
 

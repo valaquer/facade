@@ -69,6 +69,7 @@ Opens at http://localhost:5173.
 |-------|------|-------------|--------|-------|
 | UI-1 | 2026-05-11 | Chica's pixel-perfect mockup UI into Facade codebase (app.css, layout, page with all example content, markdown rendering, sidebar, input bar, keyboard shortcuts) | DONE | marked v12→v18, Tailwind v4→v3 syntax. Boss visual verified. |
 | REQ-2 | 2026-05-11 | Fixed input bar at bottom, conversation scrolls independently | DONE | Input bar moved outside scrollable div. Width adjusted during visual review. Boss verified. |
+| REQ-12 | 2026-05-13 | Input bar text wrapping — autosize library, auto-grow textarea, word-wrap instead of horizontal overflow | DONE | 2 attempts: v1 failed (autosize called in onMount before textarea existed), v2 fixed (moved to $effect tracking inputRef). Boss visual verified. |
 
 ## KNOWN ISSUES
 
@@ -82,6 +83,7 @@ Opens at http://localhost:5173.
 |-------|---------|---------------|---------------|------------|
 | REQ-7 | 1 | Full round-trip messaging (Boss→Kitty + teammate→Facade MCP) | Boss typed message in Rio's Facade tab, hit Enter, message disappeared — not rendered in conversation view | textarea Enter key inserted newline instead of submitting — no onkeydown handler. Fixed. |
 | REQ-7 | 2 | Scope narrowed to Boss→Kitty only. Enter fix applied. | Boss message renders but appears twice in conversation area — duplicate rendering | Likely: message added to local array on send AND again on SSE echo. Natalie investigating. |
+| REQ-12 | 1 | autosize library — textarea auto-grow for input bar | Boss verified — no change. autosize never initialized. | autosize() called in onMount, but textarea is inside `{#if selectedConvId}` which renders after async sidebar load. inputRef was undefined. Fixed with $effect. |
 
 ---
 
