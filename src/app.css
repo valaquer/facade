@@ -45,6 +45,7 @@
 	/* Kitty-matching accent */
 	--color-kitty-accent: #5b8fa8;
 
+	--font-sans: 'Inter', sans-serif;
 	--font-mono: 'JetBrains Mono', 'JetBrainsMono Nerd Font Mono', ui-monospace, monospace;
 }
 
