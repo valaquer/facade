@@ -212,7 +212,7 @@
 					<div style="padding-top: 2rem; text-align: left; align-self: start;">
 						<p style="font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
 					</div>
-					<div style="padding-top: 2rem; border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : 'none'}; padding-left: {msg.sender === 'boss' ? '1rem' : '1.5rem'};">
+					<div style="padding-top: 2rem; border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : 'none'}; padding-left: 1.5rem;">
 						<div style="padding-left: 0;">
 							<div class="md-content">
 								{@html renderMd(msg.content)}
