@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { marked } from 'marked';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import autosize from 'autosize';
 
 	marked.setOptions({ breaks: true, gfm: true });
@@ -78,6 +78,7 @@
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
 		newMessage = "";
+		await tick();
 		if (inputRef) autosize.update(inputRef);
 
 		try {
