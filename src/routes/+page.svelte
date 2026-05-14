@@ -78,7 +78,7 @@
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
 		newMessage = "";
-		if (inputRef) autosize.update(inputRef);
+		if (inputRef) inputRef.style.height = '';
 
 		try {
 			const res = await fetch("/api/message", {
