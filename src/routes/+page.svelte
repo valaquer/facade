@@ -198,7 +198,7 @@
 			{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
 				<div
 					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-					style="padding: 4px 1rem 4px 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
+					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
 				>
 					<div>{item.name}</div>
 					{#if item.participants?.length}
@@ -216,7 +216,7 @@
 				{#each sidebarItems.filter((x) => x.kind === "past") as item}
 					<div
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-						style="padding: 4px 1rem 4px 1.5rem; cursor: pointer; color: var(--color-text-muted); opacity: 0.6;"
+					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
 					>
 						<div>{item.name}</div>
 					</div>
