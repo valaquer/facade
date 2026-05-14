@@ -254,6 +254,7 @@ Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/
 | REQ-024 | 2px #5A3E2E copper left border on input box and boss messages | Shipped |
 | REQ-025 | "Fire up Markwhen" button in sidebar, symlinks markwhen-fork.html + dist/ into static/, replaces provoque.ai footer | Shipped |
 | REQ-026 | Fan-out delivery from huddle rooms — messages to huddle-{host} deliver to all members' Kitty tabs | Shipped |
+| REQ-056 | Huddle state polling in room-sync.ts — `/tmp/kitty-huddles.json` polled every 3s, `huddle_update` SSE emitted on state change | Shipped |
 
 ## Conventions
 
