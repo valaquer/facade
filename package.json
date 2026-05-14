@@ -73,6 +73,8 @@
 		"@modelcontextprotocol/sdk": "^1.26.0",
 		"@resvg/resvg-js": "^2.6.2",
 		"autoprefixer": "^10.4.14",
+		"autosize": "^6.0.1",
+		"better-sqlite3": "^12.10.0",
 		"bits-ui": "^2.14.2",
 		"date-fns": "^2.29.3",
 		"file-type": "^21.3.1",

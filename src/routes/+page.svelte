@@ -50,8 +50,6 @@
 	let newMessage = $state("");
 	let eventSource: EventSource | undefined;
 	let messagesContainer: HTMLElement | undefined = $state();
-	let pastHuddles = $state<SidebarItem[]>([]);
-	let previousActiveHuddles = $state<SidebarItem[]>([]);
 
 	let selectedConvId = $derived(sidebarItems[selectedIndex]?.id ?? "");
 
@@ -61,15 +59,9 @@
 			const data = await res.json();
 			const teammates = (data.teammates ?? []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name, kind: "teammate" as const }));
 			const currentHuddles: SidebarItem[] = (data.huddles ?? []).map((h: { id: string; name: string; host: string; participants: string[] }) => ({ id: h.id, name: h.name, kind: "huddle" as const, participants: h.participants }));
+			const pastItems: SidebarItem[] = (data.pastRooms ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, kind: "past" as const }));
 
-			const currentIds = new Set(currentHuddles.map((h) => h.id));
-			const ended = previousActiveHuddles.filter((h) => !currentIds.has(h.id));
-			if (ended.length > 0) {
-				pastHuddles = [...pastHuddles, ...ended.map((h) => ({ ...h, kind: "past" as const }))];
-			}
-			previousActiveHuddles = currentHuddles;
-
-			const items = [...teammates, ...currentHuddles, ...pastHuddles];
+			const items = [...teammates, ...currentHuddles, ...pastItems];
 			sidebarItems = items;
 			if (selectedIndex >= items.length) selectedIndex = 0;
 		} catch {
@@ -163,6 +155,20 @@
 	}
 
 	let currentMessages = $derived(selectedConvId ? (conversations[selectedConvId] ?? []) : []);
+
+	$effect(() => {
+		const convId = selectedConvId;
+		if (convId && !conversations[convId]) {
+			fetch(`/api/messages?room=${convId}`)
+				.then((r) => r.json())
+				.then((msgs) => {
+					conversations[convId] = msgs;
+					conversations = conversations;
+					setTimeout(scrollToBottom, 50);
+				})
+				.catch(() => {});
+		}
+	});
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -202,7 +208,7 @@
 			{/each}
 			</div>
 
-			{#if pastHuddles.length > 0}
+			{#if sidebarItems.filter((x) => x.kind === "past").length > 0}
 				<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
 					<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
 				</div>

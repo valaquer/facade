@@ -1,6 +1,7 @@
 import type { RequestHandler } from "./$types";
 import { sendToKitty } from "$lib/server/kitten";
 import { emitEvent } from "$lib/server/events";
+import { saveMessage } from "$lib/server/facade-db";
 import { v4 } from "uuid";
 import fs from "fs";
 
@@ -14,8 +15,6 @@ interface StoredMessage {
 	createdAt: string;
 }
 
-const messages = new Map<string, StoredMessage[]>();
-
 export const POST: RequestHandler = async ({ request }) => {
 	const { sender, body, room } = await request.json();
 
@@ -26,25 +25,25 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
+	const resolvedRoom = room === "direct-boss" ? `direct-${sender}` : room;
+
 	const id = v4();
 	const createdAt = new Date().toISOString();
-	const msg: StoredMessage = { id, conversationId: room, sender, content: body, createdAt };
+	const msg: StoredMessage = { id, conversationId: resolvedRoom, sender, content: body, createdAt };
 
-	const existing = messages.get(room) ?? [];
-	existing.push(msg);
-	messages.set(room, existing);
+	saveMessage(msg);
 
 	emitEvent({
 		type: "message",
-		conversationId: room,
+		conversationId: resolvedRoom,
 		sender,
 		content: body,
 		timestamp: createdAt,
 	});
 
 	// Fan-out for huddle rooms: deliver to all members
-	if (room.startsWith("huddle-")) {
-		const hostKey = room.replace("huddle-", "").toLowerCase();
+	if (resolvedRoom.startsWith("huddle-")) {
+		const hostKey = resolvedRoom.replace("huddle-", "").toLowerCase();
 		try {
 			const raw = fs.readFileSync(HUDDLE_STATE_FILE, "utf-8");
 			const state = JSON.parse(raw);
@@ -53,7 +52,9 @@ export const POST: RequestHandler = async ({ request }) => {
 				const members = [entry.host, ...entry.participants];
 				for (const m of members) {
 					if (m !== sender) {
-						sendToKitty(m, `[${sender}] ${body}`).catch(() => {});
+						sendToKitty(m, { sender, room: resolvedRoom, body, timestamp: createdAt }).catch(
+							() => {}
+						);
 					}
 				}
 			}
@@ -62,14 +63,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	} else {
 		// Deliver to the room owner's Kitty tab, unless the sender owns the room
-		const targetTeammate = room.replace(/^direct-/, "").toLowerCase();
+		const targetTeammate = resolvedRoom.replace(/^direct-/, "").toLowerCase();
 		if (targetTeammate !== sender) {
-			sendToKitty(targetTeammate, `[${sender}] ${body}`).catch(() => {});
+			sendToKitty(targetTeammate, { sender, room: resolvedRoom, body, timestamp: createdAt }).catch(
+				() => {}
+			);
 		}
 	}
 
 	return new Response(
-		JSON.stringify({ id, conversationId: room, sender, content: body, createdAt }),
+		JSON.stringify({ id, conversationId: resolvedRoom, sender, content: body, createdAt }),
 		{
 			headers: { "Content-Type": "application/json" },
 		}

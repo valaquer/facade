@@ -39,9 +39,19 @@ async function discoverSocket(): Promise<string | null> {
 	return null;
 }
 
-export async function sendToKitty(teammate: string, text: string): Promise<string> {
+export async function sendToKitty(
+	teammate: string,
+	payload: { sender: string; room: string; body: string; timestamp: string }
+): Promise<string> {
 	const socket = await discoverSocket();
 	if (!socket) return "no_socket";
+
+	const text = [
+		`sender: ${payload.sender}`,
+		`room: ${payload.room}`,
+		`timestamp: ${payload.timestamp}`,
+		`body: "${payload.body}"`,
+	].join("\n");
 
 	try {
 		const execFileAsyncBound = execFileAsync;
