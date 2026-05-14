@@ -199,6 +199,8 @@
 					setTimeout(scrollToBottom, 50);
 				})
 				.catch(() => {});
+		} else if (convId) {
+			setTimeout(scrollToBottom, 50);
 		}
 	});
 </script>
