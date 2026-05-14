@@ -164,12 +164,12 @@ These files are ours — modify freely.
 |---|---|
 | `src/app.css` | All theme variables, markdown styles (Obsidianite gradients), diff rendering, code blocks |
 | `src/routes/+layout.svelte` | Root layout — imports app.css, JetBrains Mono font, renders children |
-| `src/routes/+page.svelte` | Main chat UI: sidebar, message grid (72px+1fr, 570px), input bar, markdown rendering |
+| `src/routes/+page.svelte` | Main chat UI: sidebar, message grid (72px+minmax(0,1fr), 570px), input bar, markdown rendering |
 
 Design constants:
 - Font: JetBrains Mono, weight 300, 12px, line-height 1.8
 - Text color: `#CDCCC2`, muted: `#808080`
-- Content width: 570px max, grid columns: 72px label + 1fr content
+- Content width: 570px max, grid columns: 72px label + minmax(0, 1fr) content
 - Background: `#0b0d10` (premium black), panels: `#0e1114`, elements: `#1e1e1e`, dividers: `#282a30`
 - Sidebar: 280px, `#0e1114` bg, dashed `#282a30` border, three-section layout. Section headers in Inter. Teammate names in system-ui. Chat sender labels in Inter. (Teammates, Huddles, Past Rooms) with gradient headers and 60px padding-bottom per section. Huddle rooms read from `/tmp/kitty-huddles.json` (MCP huddle server state) with host name + participant list. Teammate and huddle names are lowercase.
 - Input bar: 1px dashed `#282a30` border with 2px `#5A3E2E` (copper) left border, `#1e1e1e` bg. Boss messages also get 2px `#5A3E2E` left border.
