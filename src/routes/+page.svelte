@@ -41,7 +41,7 @@
 		});
 	});
 
-	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle"; participants?: string[] };
+	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; participants?: string[] };
 	type ChatMsg = { id: string; sender: string; content: string; createdAt: string };
 
 	let sidebarItems = $state<SidebarItem[]>([]);
@@ -50,6 +50,8 @@
 	let newMessage = $state("");
 	let eventSource: EventSource | undefined;
 	let messagesContainer: HTMLElement | undefined = $state();
+	let pastHuddles = $state<SidebarItem[]>([]);
+	let previousActiveHuddles = $state<SidebarItem[]>([]);
 
 	let selectedConvId = $derived(sidebarItems[selectedIndex]?.id ?? "");
 
@@ -57,10 +59,17 @@
 		try {
 			const res = await fetch("/api/rooms");
 			const data = await res.json();
-			const items: SidebarItem[] = [
-				...(data.teammates ?? []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name, kind: "teammate" as const })),
-				...(data.huddles ?? []).map((h: { id: string; name: string; host: string; participants: string[] }) => ({ id: h.id, name: h.name, kind: "huddle" as const, participants: h.participants })),
-			];
+			const teammates = (data.teammates ?? []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name, kind: "teammate" as const }));
+			const currentHuddles: SidebarItem[] = (data.huddles ?? []).map((h: { id: string; name: string; host: string; participants: string[] }) => ({ id: h.id, name: h.name, kind: "huddle" as const, participants: h.participants }));
+
+			const currentIds = new Set(currentHuddles.map((h) => h.id));
+			const ended = previousActiveHuddles.filter((h) => !currentIds.has(h.id));
+			if (ended.length > 0) {
+				pastHuddles = [...pastHuddles, ...ended.map((h) => ({ ...h, kind: "past" as const }))];
+			}
+			previousActiveHuddles = currentHuddles;
+
+			const items = [...teammates, ...currentHuddles, ...pastHuddles];
 			sidebarItems = items;
 			if (selectedIndex >= items.length) selectedIndex = 0;
 		} catch {
@@ -193,9 +202,21 @@
 			{/each}
 			</div>
 
-			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
-				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
-			</div>
+			{#if pastHuddles.length > 0}
+				<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
+					<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
+				</div>
+				<div style="padding: 0.5rem 0 60px 0;">
+				{#each sidebarItems.filter((x) => x.kind === "past") as item}
+					<div
+						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
+						style="padding: 4px 1rem 4px 1.5rem; cursor: pointer; color: var(--color-text-muted); opacity: 0.6;"
+					>
+						<div>{item.name}</div>
+					</div>
+				{/each}
+				</div>
+			{/if}
 		</div>
 		<div onclick={() => window.open('/markwhen-fork.html', '_blank')} style="padding: 0.75rem 1rem; border-top: 1px dashed var(--color-bg-step4); cursor: pointer; font-size: 11px; color: var(--color-text-muted);">
 			Fire up Markwhen
