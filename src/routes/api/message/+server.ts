@@ -27,9 +27,71 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const resolvedRoom = room === "direct-boss" ? `direct-${sender}` : room;
-
 	const id = v4();
 	const createdAt = new Date().toISOString();
+
+	// --- Command handling ---
+	if (body.startsWith("/")) {
+		const parts = body.trim().split(/\s+/);
+		const command = parts[0].toLowerCase();
+		let systemContent = "";
+
+		if (command === "/start-livemirror") {
+			const teammates = parts.slice(1).filter((t: string) => t.length > 0);
+			for (const t of teammates) {
+				fs.writeFileSync(`/tmp/facade-relay-active-${t}`, resolvedRoom);
+			}
+			systemContent =
+				teammates.length > 0
+					? `Live mirror started for: ${teammates.join(", ")}`
+					: "Live mirror: no teammates specified";
+		} else if (command === "/end-livemirror") {
+			try {
+				const dir = fs.readdirSync("/tmp");
+				for (const f of dir) {
+					if (f.startsWith("facade-relay-active-")) {
+						fs.unlinkSync(`/tmp/${f}`);
+					}
+				}
+			} catch {
+				// ignore
+			}
+			systemContent = "Live mirror stopped";
+		}
+
+		if (systemContent) {
+			const sysMsg: StoredMessage = {
+				id,
+				conversationId: resolvedRoom,
+				sender: "system",
+				content: systemContent,
+				createdAt,
+				type: "message",
+			};
+			saveMessage(sysMsg);
+			emitEvent({
+				type: "message",
+				conversationId: resolvedRoom,
+				sender: "system",
+				content: systemContent,
+				timestamp: createdAt,
+			});
+			return new Response(
+				JSON.stringify({
+					id,
+					conversationId: resolvedRoom,
+					sender: "system",
+					content: systemContent,
+					createdAt,
+				}),
+				{
+					headers: { "Content-Type": "application/json" },
+				}
+			);
+		}
+		// Unknown command — fall through to regular message handling
+	}
+
 	const msg: StoredMessage = {
 		id,
 		conversationId: resolvedRoom,
@@ -48,6 +110,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		content: body,
 		timestamp: createdAt,
 	});
+
+	// System messages are Facade-only — no Kitty forwarding
+	if (sender === "system") {
+		return new Response(
+			JSON.stringify({ id, conversationId: resolvedRoom, sender, content: body, createdAt }),
+			{
+				headers: { "Content-Type": "application/json" },
+			}
+		);
+	}
 
 	// Fan-out for huddle rooms: deliver to all members
 	if (resolvedRoom.startsWith("huddle-")) {
