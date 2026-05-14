@@ -53,6 +53,8 @@
 
 	let selectedConvId = $derived(sidebarItems[selectedIndex]?.id ?? "");
 
+	let prefsTimer: ReturnType<typeof setTimeout> | undefined;
+
 	async function loadSidebar() {
 		try {
 			const res = await fetch("/api/rooms");
@@ -64,9 +66,30 @@
 			const items = [...teammates, ...currentHuddles, ...pastItems];
 			sidebarItems = items;
 			if (selectedIndex >= items.length) selectedIndex = 0;
+
+			const prefsRes = await fetch("/api/preferences");
+			const prefs = await prefsRes.json();
+			if (prefs.selectedRoom) {
+				const idx = items.findIndex((i) => i.id === prefs.selectedRoom);
+				if (idx >= 0) selectedIndex = idx;
+			}
 		} catch {
 			sidebarItems = [];
 		}
+	}
+
+	function savePrefs() {
+		if (prefsTimer) clearTimeout(prefsTimer);
+		prefsTimer = setTimeout(() => {
+			const roomId = selectedConvId;
+			if (roomId) {
+				fetch("/api/preferences", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ selectedRoom: roomId }),
+				}).catch(() => {});
+			}
+		}, 300);
 	}
 
 	function scrollToBottom() {
@@ -133,6 +156,15 @@
 		if (inputRef) {
 			autosize(inputRef);
 			return () => autosize.destroy(inputRef);
+		}
+	});
+
+	let prevRoom = "";
+	$effect(() => {
+		const room = selectedConvId;
+		if (room && room !== prevRoom) {
+			prevRoom = room;
+			savePrefs();
 		}
 	});
 
