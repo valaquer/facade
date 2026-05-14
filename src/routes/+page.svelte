@@ -234,7 +234,7 @@
 	{#if selectedConvId}
 		<!-- Conversation area (scrollable) -->
 		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 1rem;" bind:this={messagesContainer}>
-			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px 1fr; gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
+			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 				{#each currentMessages as msg}
 					<div style="padding-top: 2rem; text-align: left; align-self: start;">
 						<p style="font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
@@ -251,7 +251,7 @@
 		</div>
 		<!-- Input bar -->
 		<div style="width: 100%; flex-shrink: 0;">
-		<div style="max-width: 570px; display: grid; grid-template-columns: 72px 1fr; gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
+		<div style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 			<div style="padding-top: calc(2rem + 0.5rem); text-align: left; align-self: start;">
 				<p style="font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">boss</p>
 			</div>

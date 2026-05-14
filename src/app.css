@@ -64,6 +64,9 @@ html, body {
 }
 
 /* Markdown rendering — Obsidian dark theme match */
+.md-content {
+	overflow-wrap: break-word;
+}
 .md-content h2 {
 	font-size: 1.4em;
 	font-weight: 700;
