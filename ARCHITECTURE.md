@@ -192,6 +192,7 @@ Design constants:
 | `/api/rooms` | GET | Returns active teammates + huddles from JSON state |
 | `/api/events` | GET | SSE stream — pushes events when room state changes |
 | `/api/message` | POST | Accepts `{ sender, room, body }`. Stores message, forwards to target's Kitty tab via `kitten send-text`. Self-delivery guard: skips Kitty forward if sender is the room owner (no self-echo). |
+| `/api/preferences` | GET, POST | Read/write `facade-preferences.json`. Stores `selectedRoom` (persisted sidebar selection across sessions). |
 
 ### Message Flow (REQ-013)
 
