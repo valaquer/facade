@@ -9,6 +9,36 @@
 		return marked.parse(content) as string;
 	}
 
+	function renderToolCard(content: string): string {
+		let data: any;
+		try { data = JSON.parse(content); } catch { return renderMd(content); }
+		const { toolName, toolInput, toolOutput, status } = data;
+		const statusIcon = status === "success" ? "✓" : "✗";
+		const statusColor = status === "success" ? "#4ade80" : "#f87171";
+		let inputHtml = "";
+		let outputHtml = "";
+		if (toolInput) {
+			const input = typeof toolInput === "string" ? toolInput : JSON.stringify(toolInput, null, 2);
+			inputHtml = `<div style="font-size: 11px; margin-bottom: 0.25rem; color: var(--color-text-muted);">Input:</div><pre style="background: var(--color-bg); padding: 0.5em; border-radius: 4px; overflow-x: auto; font-size: 11px; line-height: 1.5; margin: 0 0 0.75em 0;"><code>${escapeHtml(input)}</code></pre>`;
+		}
+		if (toolOutput) {
+			const output = typeof toolOutput === "string" ? toolOutput : JSON.stringify(toolOutput, null, 2);
+			outputHtml = `<div style="font-size: 11px; margin-bottom: 0.25rem; color: var(--color-text-muted);">Output:</div><pre style="background: var(--color-bg); padding: 0.5em; border-radius: 4px; overflow-x: auto; font-size: 11px; line-height: 1.5; margin: 0;"><code>${escapeHtml(output)}</code></pre>`;
+		}
+		return `<div style="background: var(--color-bg-panel); border-radius: 4px; padding: 0.75em; margin-bottom: 0.5em;">
+			<div style="display: flex; align-items: center; gap: 0.5em; margin-bottom: 0.5em; padding-bottom: 0.5em; border-bottom: 1px solid var(--color-bg-step4);">
+				<span style="font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: ${statusColor};">${statusIcon}</span>
+				<span style="font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--color-text);">${escapeHtml(toolName)}</span>
+			</div>
+			${inputHtml}
+			${outputHtml}
+		</div>`;
+	}
+
+	function escapeHtml(str: string): string {
+		return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+	}
+
 	onMount(() => {
 		document.addEventListener('click', (e) => {
 			const btn = (e.target as HTMLElement).closest('.copy-btn');
@@ -42,7 +72,7 @@
 	});
 
 	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; participants?: string[] };
-	type ChatMsg = { id: string; sender: string; content: string; createdAt: string };
+	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean };
 
 	let sidebarItems = $state<SidebarItem[]>([]);
 	let selectedIndex = $state(0);
@@ -133,6 +163,7 @@
 						sender: data.sender,
 						content: data.content,
 						createdAt: data.timestamp ?? new Date().toISOString(),
+						toolCall: data.toolCall === true,
 					};
 					conversations[convId] = [...(conversations[convId] ?? []), msg];
 					conversations = conversations;
@@ -193,8 +224,8 @@
 		if (convId && !conversations[convId]) {
 			fetch(`/api/messages?room=${convId}`)
 				.then((r) => r.json())
-				.then((msgs) => {
-					conversations[convId] = msgs;
+				.then((msgs: any[]) => {
+					conversations[convId] = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
 					conversations = conversations;
 					setTimeout(scrollToBottom, 50);
 				})
@@ -275,9 +306,13 @@
 					</div>
 					<div style="padding-top: 2rem;">
 						<div style="border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : '2px solid transparent'}; padding-left: 1.5rem;">
-							<div class="md-content">
-								{@html renderMd(msg.content)}
-							</div>
+							{#if msg.toolCall}
+								{@html renderToolCard(msg.content)}
+							{:else}
+								<div class="md-content">
+									{@html renderMd(msg.content)}
+								</div>
+							{/if}
 						</div>
 					</div>
 				{/each}
