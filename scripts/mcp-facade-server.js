@@ -3,12 +3,13 @@
 // Exposes: post_to_facade(body: string)
 // Called via MCP from Kitty teammate tabs.
 
+import { basename } from "path";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 const FACADE_URL = process.env.FACADE_URL || "http://localhost:51730";
-const SENDER = process.env.FACADE_SENDER || "unknown";
+const SENDER = process.env.FACADE_SENDER || basename(process.cwd());
 const ROOM = process.env.FACADE_ROOM || "direct-boss";
 
 const server = new Server(
