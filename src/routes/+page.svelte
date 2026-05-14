@@ -290,7 +290,7 @@
 			<div style="padding-top: 2rem; padding-bottom: 1rem;">
 				<form onsubmit={(e) => { e.preventDefault(); sendMessage(); }}>
 					<div style="border: 1px dashed var(--color-bg-step4); border-left: 2px solid #5A3E2E;">
-						<div style="padding: 0.5rem 1rem 0.5rem calc(1rem + 2px); background: var(--color-bg-element);">
+						<div style="padding: 0.5rem 1rem 0.5rem 1.5rem; background: var(--color-bg-element);">
 							<textarea
 								bind:value={newMessage}
 								bind:this={inputRef}
