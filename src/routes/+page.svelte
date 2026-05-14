@@ -208,7 +208,7 @@
 <div class="h-full flex">
 	<!-- Sidebar -->
 	<div style="width: 280px; flex-shrink: 0; background: var(--color-bg-panel); border-right: 1px dashed var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh;">
-		<div style="flex: 1; overflow-y: auto;">
+		<div style="flex: 1; overflow-y: auto; font-family: var(--font-sans);">
 			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
 				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
 			</div>
@@ -290,7 +290,7 @@
 			<div style="padding-top: 2rem; padding-bottom: 1rem;">
 				<form onsubmit={(e) => { e.preventDefault(); sendMessage(); }}>
 					<div style="border: 1px dashed var(--color-bg-step4); border-left: 2px solid #5A3E2E;">
-						<div style="padding: 0.5rem 1rem 0.5rem 1rem; background: var(--color-bg-element);">
+						<div style="padding: 0.5rem 1rem 0.5rem calc(1rem + 2px); background: var(--color-bg-element);">
 							<textarea
 								bind:value={newMessage}
 								bind:this={inputRef}
