@@ -11,6 +11,7 @@ interface StoredMessage {
 	sender: string;
 	content: string;
 	createdAt: string;
+	type: string;
 }
 
 interface RoomRow {
@@ -38,9 +39,15 @@ export function initDb(): void {
 			conversationId TEXT NOT NULL,
 			sender TEXT NOT NULL,
 			content TEXT NOT NULL,
-			createdAt TEXT NOT NULL
+			createdAt TEXT NOT NULL,
+			type TEXT NOT NULL DEFAULT 'message'
 		)
 	`);
+	try {
+		db.exec(`ALTER TABLE messages ADD COLUMN type TEXT NOT NULL DEFAULT 'message'`);
+	} catch {
+		// column already exists
+	}
 	db.exec(`
 		CREATE TABLE IF NOT EXISTS rooms (
 			id TEXT PRIMARY KEY,
@@ -62,9 +69,16 @@ export function initDb(): void {
 export function saveMessage(msg: StoredMessage): void {
 	initDb();
 	const stmt = db.prepare(
-		"INSERT OR IGNORE INTO messages (id, conversationId, sender, content, createdAt) VALUES (?, ?, ?, ?, ?)"
+		"INSERT OR IGNORE INTO messages (id, conversationId, sender, content, createdAt, type) VALUES (?, ?, ?, ?, ?, ?)"
 	);
-	stmt.run(msg.id, msg.conversationId, msg.sender, msg.content, msg.createdAt);
+	stmt.run(
+		msg.id,
+		msg.conversationId,
+		msg.sender,
+		msg.content,
+		msg.createdAt,
+		msg.type || "message"
+	);
 }
 
 export function getMessages(conversationId: string): StoredMessage[] {

@@ -13,6 +13,7 @@ interface StoredMessage {
 	sender: string;
 	content: string;
 	createdAt: string;
+	type: string;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -29,7 +30,14 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const id = v4();
 	const createdAt = new Date().toISOString();
-	const msg: StoredMessage = { id, conversationId: resolvedRoom, sender, content: body, createdAt };
+	const msg: StoredMessage = {
+		id,
+		conversationId: resolvedRoom,
+		sender,
+		content: body,
+		createdAt,
+		type: "message",
+	};
 
 	saveMessage(msg);
 
