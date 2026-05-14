@@ -237,7 +237,7 @@ Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/
 | REQ-003 | Wipe sample data — empty state | Shipped |
 | REQ-004 | Kitty lifecycle mirror — teammate opens/closes in sidebar | Shipped |
 | REQ-005 | SSE push replacing browser polling for instant updates | Shipped |
-| REQ-006 | Facade auto-start/stop with Kitty lifecycle + port 51730 + notify_facade cleanup | Pending lifecycle test |
+| REQ-006 | Facade auto-start/stop with Kitty lifecycle + port 51730 + notify_facade cleanup | DROPPED | Boss prefers manual Raycast shortcuts (Facade/Markwhen). Dead code cleaned from kitty-open-teammate.sh, watchdog deleted. |
 | REQ-007 | Boss→Kitty messaging — POST /api/message, kitten send-text, SSE echo, conversation view | Shipped |
 | REQ-012 | Input bar text wrapping — autosize library, auto-grow textarea, word-wrap instead of horizontal overflow | Shipped |
 | REQ-013 | Sender guard removal — teammate-to-teammate Kitty delivery, unconditional forward | Shipped |
