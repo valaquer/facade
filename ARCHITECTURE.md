@@ -235,6 +235,13 @@ Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the 
 
 Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/message` endpoint detects huddle rooms (room ID starts with `huddle-`), reads the SQLite participants list, and delivers via `sendToKitty` to every member except the sender. Token enforcement (REQ-62/63) requires huddle posters to hold the speaking token — Boss and system messages exempt. Token notifications are fanned out to all members' Kitty tabs (REQ-64).
 
+### Token Management (REQ-66/67)
+
+Shared logic in `src/lib/server/token-helpers.ts`:
+- **Boss clears (REQ-66):** When Boss posts in a huddle, token holder and queue are cleared. All members notified "Boss spoke – token released. Request to speak." Everyone re-requests fresh.
+- **10s timeout (REQ-67):** `startTokenTimer(roomId)` sets a 10s setTimeout. If the holder doesn't post, the timer calls `getTokenHolder` (fire-time lookup, no stale refs) and advances to the next in queue. Timer restarts recursively if a new holder exists.
+- **Timer lifecycle:** Started on grant and token advance. Cleared on post, Boss clear, manual release, participant removal, and huddle end. No orphan timers (Pattern 1).
+
 ### REQ Log
 
 | REQ | Description | Status |
