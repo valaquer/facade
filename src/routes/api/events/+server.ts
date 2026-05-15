@@ -5,21 +5,38 @@ export const GET: RequestHandler = async ({ request }) => {
 	const stream = new ReadableStream({
 		start(controller) {
 			const encoder = new TextEncoder();
+			let closed = false;
 
-			const unsubscribe = onEvent((event) => {
-				controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-			});
-
-			controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "connected" })}\n\n`));
-
-			request.signal.addEventListener("abort", () => {
+			function cleanup() {
+				if (closed) return;
+				closed = true;
 				unsubscribe();
 				try {
 					controller.close();
 				} catch {
 					// already closed
 				}
+			}
+
+			function safeEnqueue(data: string) {
+				if (closed || request.signal.aborted) {
+					cleanup();
+					return;
+				}
+				try {
+					controller.enqueue(encoder.encode(data));
+				} catch {
+					cleanup();
+				}
+			}
+
+			const unsubscribe = onEvent((event) => {
+				safeEnqueue(`data: ${JSON.stringify(event)}\n\n`);
 			});
+
+			safeEnqueue(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+
+			request.signal.addEventListener("abort", cleanup);
 		},
 	});
 
