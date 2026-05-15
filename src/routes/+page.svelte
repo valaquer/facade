@@ -15,6 +15,9 @@
 			if (isListItem && !prevIsListItem && !prevIsBlank && i > 0) {
 				processed.push('');
 			}
+			if (!isListItem && prevIsListItem && lines[i].trim() !== '') {
+				processed.push('');
+			}
 			processed.push(lines[i]);
 		}
 		return marked.parse(processed.join('\n')) as string;
