@@ -230,6 +230,14 @@ export function roomExists(id: string): boolean {
 	return !!stmt.get(id);
 }
 
+export function getTokenHolder(roomId: string): string | null {
+	initDb();
+	const row = db.prepare("SELECT tokenHolder FROM huddle_tokens WHERE roomId = ?").get(roomId) as
+		| { tokenHolder: string | null }
+		| undefined;
+	return row?.tokenHolder ?? null;
+}
+
 export function getRoom(id: string): RoomRow | undefined {
 	initDb();
 	const stmt = db.prepare("SELECT * FROM rooms WHERE id = ?");

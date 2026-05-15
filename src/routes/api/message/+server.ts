@@ -8,6 +8,7 @@ import {
 	formatTimestamp,
 	roomExists,
 	getHuddleMembers,
+	getTokenHolder,
 	releaseToken,
 } from "$lib/server/facade-db";
 import { v4 } from "uuid";
@@ -52,6 +53,17 @@ export const POST: RequestHandler = async ({ request }) => {
 				lastActivity: createdAt,
 				startedAt: createdAt,
 			});
+		}
+	}
+
+	// Token enforcement for huddle rooms: reject before any save
+	if (resolvedRoom.startsWith("huddle-") && sender !== "boss" && sender !== "system") {
+		const holder = getTokenHolder(resolvedRoom);
+		if (holder !== sender) {
+			return new Response(
+				JSON.stringify({ error: `Token held by ${holder ?? "none"}. Request it first.` }),
+				{ status: 403, headers: { "Content-Type": "application/json" } }
+			);
 		}
 	}
 
@@ -174,6 +186,17 @@ export const POST: RequestHandler = async ({ request }) => {
 				content: `Token passed to ${next}`,
 				timestamp: sysMsg.createdAt,
 			});
+			// Notify all members in their Kitty tabs
+			for (const m of members) {
+				if (m !== sender) {
+					sendToKitty(m, {
+						sender: "system",
+						room: resolvedRoom,
+						body: `Token passed to ${next}`,
+						timestamp: sysMsg.createdAt,
+					}).catch(() => {});
+				}
+			}
 		}
 	} else {
 		// Deliver to the room owner's Kitty tab, unless the sender owns the room

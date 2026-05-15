@@ -258,6 +258,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		emitEvent({ type: "huddle_update" });
 
+		// Release token if removed participant held it
+		for (const p of participants) {
+			releaseToken(roomId, p);
+		}
+
 		const notification = `System notification: ${participants.join(", ")} removed from huddle ${roomId}.`;
 		const msg = {
 			id: v4(),
