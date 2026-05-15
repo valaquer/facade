@@ -233,9 +233,9 @@ Active huddle rooms are managed by Facade-native huddle actions in `src/routes/a
 
 ### Huddle Message Flow
 
-Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/message` endpoint detects huddle rooms (room ID starts with `huddle-`), reads the SQLite participants list, and delivers via `sendToKitty` to every member except the sender. Token notifications are fanned out to all members' Kitty tabs (REQ-64).
+Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/message` endpoint detects huddle rooms (room ID starts with `huddle-`), reads the SQLite participants list, and delivers via `sendToKitty` to every member except the sender. Token notifications are fanned out to all members' Kitty tabs only — not saved or displayed in Facade (REQ-64, REQ-77). Client-side filter also hides historical token messages from DB.
 
-**Room resolution (REQ-69):** Huddle rooms are session-scoped (`huddle-{host}-{timestamp}`). Short-form IDs like `huddle-claire` resolve to the active room via `resolveActiveRoom()` using `originalRoomId`. All huddle room saveRoom calls set `originalRoomId: "huddle-{host}"`. Unresolvable huddle rooms return 404 — never create phantom direct rooms.
+**Room resolution (REQ-69, REQ-78):** Huddle rooms are session-scoped (`huddle-{host}-{timestamp}`). Short-form IDs like `huddle-claire` resolve to the active room via `resolveActiveRoom()` using `originalRoomId`. Resolution runs BEFORE `roomExists()` check (REQ-78) — prevents past/ghost rooms from intercepting short-form IDs. All huddle room saveRoom calls set `originalRoomId: "huddle-{host}"`. Unresolvable huddle rooms return 404 — never create phantom direct rooms.
 
 **Auto-request token (REQ-70):** Token enforcement is replaced with first-class auto-request. If the token is free, auto-grant and speak. If someone else holds it, auto-queue the sender and hold the message in `pending_messages` table. When the token advances to the queued sender, held messages are delivered automatically via `deliverPending()`. Boss-speaks and end-huddle deliver all pending messages via `deliverAllPending()` before clearing/closing. No 403 errors.
 
