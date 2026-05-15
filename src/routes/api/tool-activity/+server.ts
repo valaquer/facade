@@ -1,6 +1,7 @@
 import type { RequestHandler } from "./$types";
 import { emitEvent } from "$lib/server/events";
-import { saveMessage } from "$lib/server/facade-db";
+import { saveMessage, getHuddleMembers } from "$lib/server/facade-db";
+import { sendToKitty } from "$lib/server/kitten";
 import { v4 } from "uuid";
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -34,6 +35,18 @@ export const POST: RequestHandler = async ({ request }) => {
 		timestamp: createdAt,
 		toolCall: true,
 	});
+
+	// Fan-out to huddle participants' Kitty tabs (REQ-81)
+	if (room.startsWith("huddle-")) {
+		const inputStr = typeof toolInput === "string" ? toolInput : JSON.stringify(toolInput, null, 2);
+		const body = `[live-mirror] ${sender} used ${toolName}\nInput: ${inputStr}\nOutput: ${toolOutput || "(none)"}\nStatus: ${status}`;
+		const members = getHuddleMembers(room);
+		for (const m of members) {
+			if (m !== sender) {
+				sendToKitty(m, { sender: "system", room, body, timestamp: createdAt }).catch(() => {});
+			}
+		}
+	}
 
 	return new Response(
 		JSON.stringify({ id, conversationId: room, sender, toolName, status, createdAt }),
