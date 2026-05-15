@@ -230,6 +230,13 @@ export function roomExists(id: string): boolean {
 	return !!stmt.get(id);
 }
 
+export function clearAllTokens(roomId: string): void {
+	initDb();
+	db.prepare("UPDATE huddle_tokens SET tokenHolder = NULL, tokenQueue = '[]' WHERE roomId = ?").run(
+		roomId
+	);
+}
+
 export function getTokenHolder(roomId: string): string | null {
 	initDb();
 	const row = db.prepare("SELECT tokenHolder FROM huddle_tokens WHERE roomId = ?").get(roomId) as

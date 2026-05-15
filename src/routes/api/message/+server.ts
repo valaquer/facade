@@ -9,8 +9,13 @@ import {
 	roomExists,
 	getHuddleMembers,
 	getTokenHolder,
-	releaseToken,
 } from "$lib/server/facade-db";
+import {
+	advanceTokenAndNotify,
+	clearTokensAndNotify,
+	startTokenTimer,
+	clearTokenTimer,
+} from "$lib/server/token-helpers";
 import { v4 } from "uuid";
 import fs from "fs";
 
@@ -166,36 +171,16 @@ export const POST: RequestHandler = async ({ request }) => {
 				sendToKitty(m, { sender, room: resolvedRoom, body, timestamp: createdAt }).catch(() => {});
 			}
 		}
-		// Auto-release token if sender holds it
-		const releaseResult = releaseToken(resolvedRoom, sender);
-		if (releaseResult.startsWith("released:")) {
-			const next = releaseResult.replace("released: token advanced to ", "");
-			const sysMsg = {
-				id: v4(),
-				conversationId: resolvedRoom,
-				sender: "system",
-				content: `Token passed to ${next}`,
-				createdAt: new Date().toISOString(),
-				type: "message",
-			};
-			saveMessage(sysMsg);
-			emitEvent({
-				type: "message",
-				conversationId: resolvedRoom,
-				sender: "system",
-				content: `Token passed to ${next}`,
-				timestamp: sysMsg.createdAt,
-			});
-			// Notify all members in their Kitty tabs
-			for (const m of members) {
-				if (m !== sender) {
-					sendToKitty(m, {
-						sender: "system",
-						room: resolvedRoom,
-						body: `Token passed to ${next}`,
-						timestamp: sysMsg.createdAt,
-					}).catch(() => {});
-				}
+		if (sender === "boss") {
+			// Boss message clears all tokens — everyone re-requests fresh
+			clearTokenTimer(resolvedRoom);
+			clearTokensAndNotify(resolvedRoom);
+		} else {
+			// Auto-release token if sender holds it
+			clearTokenTimer(resolvedRoom);
+			const next = advanceTokenAndNotify(resolvedRoom, sender);
+			if (next) {
+				startTokenTimer(resolvedRoom);
 			}
 		}
 	} else {

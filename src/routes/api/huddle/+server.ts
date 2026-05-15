@@ -12,6 +12,7 @@ import {
 } from "$lib/server/facade-db";
 import { emitEvent } from "$lib/server/events";
 import { sendToKitty } from "$lib/server/kitten";
+import { startTokenTimer, clearTokenTimer, advanceTokenAndNotify } from "$lib/server/token-helpers";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { v4 } from "uuid";
@@ -128,6 +129,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const room = getRoom(roomId);
 		if (!room) return new Response(JSON.stringify({ error: "Room not found" }), { status: 404 });
 
+		clearTokenTimer(roomId);
 		setRoomType(roomId, "past");
 		emitEvent({ type: "huddle_update" });
 
@@ -260,7 +262,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Release token if removed participant held it
 		for (const p of participants) {
-			releaseToken(roomId, p);
+			clearTokenTimer(roomId);
+			const next = advanceTokenAndNotify(roomId, p);
+			if (next) {
+				startTokenTimer(roomId);
+			}
 		}
 
 		const notification = `System notification: ${participants.join(", ")} removed from huddle ${roomId}.`;
@@ -300,6 +306,9 @@ export const POST: RequestHandler = async ({ request }) => {
 			return new Response(JSON.stringify({ error: "Missing sender or roomId" }), { status: 400 });
 		}
 		const result = requestToken(sender, roomId);
+		if (result.startsWith("granted")) {
+			startTokenTimer(roomId);
+		}
 		return new Response(JSON.stringify({ result }), {
 			headers: { "Content-Type": "application/json" },
 		});
@@ -309,7 +318,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (!sender || !roomId) {
 			return new Response(JSON.stringify({ error: "Missing sender or roomId" }), { status: 400 });
 		}
+		clearTokenTimer(roomId);
 		const result = releaseToken(roomId, sender);
+		if (result.startsWith("released:")) {
+			startTokenTimer(roomId);
+		}
 		return new Response(JSON.stringify({ result }), {
 			headers: { "Content-Type": "application/json" },
 		});
