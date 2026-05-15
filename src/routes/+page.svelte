@@ -6,7 +6,18 @@
 	marked.setOptions({ breaks: true, gfm: true });
 
 	function renderMd(content: string): string {
-		return marked.parse(content) as string;
+		const lines = content.split('\n');
+		const processed: string[] = [];
+		for (let i = 0; i < lines.length; i++) {
+			const isListItem = /^\d+\.\s/.test(lines[i]);
+			const prevIsListItem = i > 0 && /^\d+\.\s/.test(lines[i - 1]);
+			const prevIsBlank = i > 0 && lines[i - 1].trim() === '';
+			if (isListItem && !prevIsListItem && !prevIsBlank && i > 0) {
+				processed.push('');
+			}
+			processed.push(lines[i]);
+		}
+		return marked.parse(processed.join('\n')) as string;
 	}
 
 	function renderToolCard(content: string): string {
