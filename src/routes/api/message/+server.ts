@@ -1,7 +1,13 @@
 import type { RequestHandler } from "./$types";
 import { sendToKitty } from "$lib/server/kitten";
 import { emitEvent } from "$lib/server/events";
-import { saveMessage } from "$lib/server/facade-db";
+import {
+	saveMessage,
+	resolveActiveRoom,
+	saveRoom,
+	formatTimestamp,
+	roomExists,
+} from "$lib/server/facade-db";
 import { v4 } from "uuid";
 import fs from "fs";
 
@@ -26,9 +32,28 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	const resolvedRoom = room === "direct-boss" ? `direct-${sender}` : room;
 	const id = v4();
 	const createdAt = new Date().toISOString();
+
+	let resolvedRoom = room === "direct-boss" ? `direct-${sender}` : room;
+	if (!roomExists(resolvedRoom)) {
+		const activeRoom = resolveActiveRoom(resolvedRoom);
+		if (activeRoom) {
+			resolvedRoom = activeRoom;
+		} else {
+			const ts = formatTimestamp(new Date());
+			const name = resolvedRoom.replace("direct-", "");
+			resolvedRoom = `direct-${name}-${ts}`;
+			saveRoom({
+				id: resolvedRoom,
+				type: "teammate",
+				name,
+				originalRoomId: `direct-${name}`,
+				lastActivity: createdAt,
+				startedAt: createdAt,
+			});
+		}
+	}
 
 	// --- Command handling ---
 	if (body.startsWith("/")) {
@@ -143,7 +168,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	} else {
 		// Deliver to the room owner's Kitty tab, unless the sender owns the room
-		const targetTeammate = resolvedRoom.replace(/^direct-/, "").toLowerCase();
+		const nameMatch = resolvedRoom.match(/^direct-(.+?)-\d{8}-\d{6}$/);
+		const targetTeammate = (
+			nameMatch ? nameMatch[1] : resolvedRoom.replace(/^direct-/, "")
+		).toLowerCase();
 		if (targetTeammate !== sender) {
 			sendToKitty(targetTeammate, { sender, room: resolvedRoom, body, timestamp: createdAt }).catch(
 				() => {}

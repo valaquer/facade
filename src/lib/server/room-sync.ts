@@ -1,7 +1,7 @@
 import { getActiveTeammatesFromKitty } from "./kitten";
 import { getActiveTeammates, activateTeammate, deactivateTeammate } from "./active-teammates";
 import { emitEvent } from "./events";
-import { saveRoom, roomExists, getMessages } from "./facade-db";
+import { saveRoom, resolveActiveRoom, setRoomType, formatTimestamp } from "./facade-db";
 import fs from "fs";
 
 const POLL_INTERVAL = 3000;
@@ -10,19 +10,9 @@ const HUDDLE_STATE_FILE = "/tmp/kitty-huddles.json";
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let lastHuddleState = "";
 
-function formatTimestamp(date: Date): string {
-	const y = date.getFullYear();
-	const m = String(date.getMonth() + 1).padStart(2, "0");
-	const d = String(date.getDate()).padStart(2, "0");
-	const h = String(date.getHours()).padStart(2, "0");
-	const min = String(date.getMinutes()).padStart(2, "0");
-	const s = String(date.getSeconds()).padStart(2, "0");
-	return `${y}${m}${d}-${h}${min}${s}`;
-}
-
-export function startRoomSync(): void {
+export async function startRoomSync(): Promise<void> {
 	if (intervalHandle) return;
-	syncOnce();
+	await syncOnce();
 	intervalHandle = setInterval(syncOnce, POLL_INTERVAL);
 }
 
@@ -40,6 +30,19 @@ async function syncOnce(): Promise<void> {
 	let changed = false;
 
 	for (const name of kittyTeammates) {
+		const baseRoomId = `direct-${name}`;
+		if (!resolveActiveRoom(baseRoomId)) {
+			const ts = formatTimestamp(new Date());
+			saveRoom({
+				id: `direct-${name}-${ts}`,
+				type: "teammate",
+				name,
+				originalRoomId: baseRoomId,
+				lastActivity: new Date().toISOString(),
+				startedAt: new Date().toISOString(),
+			});
+			changed = true;
+		}
 		if (!prevActive.includes(name)) {
 			activateTeammate(name);
 			changed = true;
@@ -48,21 +51,8 @@ async function syncOnce(): Promise<void> {
 
 	for (const name of prevActive) {
 		if (!kittyTeammates.includes(name)) {
-			const pastId = `direct-${name}-${formatTimestamp(new Date())}`;
-			const roomId = `direct-${name}`;
-
-			if (!roomExists(pastId)) {
-				const msgs = getMessages(roomId);
-				const startedAt = msgs.length > 0 ? msgs[0].createdAt : new Date().toISOString();
-				saveRoom({
-					id: pastId,
-					type: "past",
-					name: `${name}-${formatTimestamp(new Date())}`,
-					originalRoomId: roomId,
-					lastActivity: new Date().toISOString(),
-					startedAt,
-				});
-			}
+			const roomId = resolveActiveRoom(`direct-${name}`);
+			if (roomId) setRoomType(roomId, "past");
 
 			deactivateTeammate(name);
 			changed = true;

@@ -9,7 +9,7 @@ import { startRoomSync } from "$lib/server/room-sync";
 export const init: ServerInit = async () => {
 	if (building) return;
 	await initServer();
-	startRoomSync();
+	await startRoomSync();
 };
 
 export const handle: Handle = async (input) => {

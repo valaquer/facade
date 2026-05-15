@@ -26,6 +26,16 @@ interface RoomRow {
 
 let db: Database.Database;
 
+export function formatTimestamp(date: Date): string {
+	const y = date.getFullYear();
+	const m = String(date.getMonth() + 1).padStart(2, "0");
+	const d = String(date.getDate()).padStart(2, "0");
+	const h = String(date.getHours()).padStart(2, "0");
+	const min = String(date.getMinutes()).padStart(2, "0");
+	const s = String(date.getSeconds()).padStart(2, "0");
+	return `${y}${m}${d}-${h}${min}${s}`;
+}
+
 export function initDb(): void {
 	if (db) return;
 	if (!fs.existsSync(DB_DIR)) {
@@ -81,6 +91,15 @@ export function saveMessage(msg: StoredMessage): void {
 	);
 }
 
+export function resolveActiveRoom(originalRoomId: string): string | null {
+	initDb();
+	const stmt = db.prepare(
+		"SELECT id FROM rooms WHERE originalRoomId = ? AND type != 'past' ORDER BY startedAt DESC LIMIT 1"
+	);
+	const row = stmt.get(originalRoomId) as { id: string } | undefined;
+	return row?.id ?? null;
+}
+
 export function getMessages(conversationId: string): StoredMessage[] {
 	initDb();
 	const stmt = db.prepare("SELECT * FROM messages WHERE conversationId = ? ORDER BY createdAt ASC");
@@ -134,6 +153,11 @@ export function getRoomsByType(type: string): RoomRow[] {
 	initDb();
 	const stmt = db.prepare("SELECT * FROM rooms WHERE type = ? ORDER BY lastActivity DESC");
 	return stmt.all(type) as RoomRow[];
+}
+
+export function setRoomType(id: string, type: string): void {
+	initDb();
+	db.prepare("UPDATE rooms SET type = ? WHERE id = ?").run(type, id);
 }
 
 export function getAllRooms(): RoomRow[] {

@@ -1,6 +1,5 @@
 import type { RequestHandler } from "./$types";
-import { getActiveTeammates } from "$lib/server/active-teammates";
-import { getRoomsByType, saveRoom, roomExists } from "$lib/server/facade-db";
+import { getRoomsByType, getAllRooms, saveRoom, roomExists } from "$lib/server/facade-db";
 import fs from "fs";
 
 const HUDDLE_STATE_FILE = "/tmp/kitty-huddles.json";
@@ -11,14 +10,20 @@ interface HuddleEntry {
 	started: string;
 }
 
-export const GET: RequestHandler = async () => {
-	const active = getActiveTeammates();
+function parseDisplayName(roomId: string): string {
+	const match = roomId.match(/^(?:direct|huddle)-(.+?)-\d{8}-\d{6}$/);
+	if (match) return match[1];
+	const legacy = roomId.replace(/^direct-/, "").replace(/^huddle-/, "");
+	return legacy.replace(/-legacy$/, "");
+}
 
-	const teammates = active.map((name) => ({
-		id: `direct-${name}`,
-		name,
-		teammate: name,
-		lastActivity: new Date().toISOString(),
+export const GET: RequestHandler = async () => {
+	const teammateRooms = getAllRooms().filter((r) => r.type === "teammate");
+	const teammates = teammateRooms.map((r) => ({
+		id: r.id,
+		name: parseDisplayName(r.id),
+		teammate: parseDisplayName(r.id),
+		lastActivity: r.lastActivity,
 	}));
 
 	const huddles: {
@@ -76,7 +81,7 @@ export const GET: RequestHandler = async () => {
 
 	const pastRooms = getRoomsByType("past").map((r) => ({
 		id: r.id,
-		name: r.name,
+		name: r.id,
 		type: "past" as const,
 		startedAt: r.startedAt,
 	}));
