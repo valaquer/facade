@@ -9,6 +9,8 @@ import {
 	roomExists,
 	getHuddleMembers,
 	getTokenHolder,
+	requestToken,
+	savePendingMessage,
 } from "$lib/server/facade-db";
 import {
 	advanceTokenAndNotify,
@@ -46,6 +48,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		const activeRoom = resolveActiveRoom(resolvedRoom);
 		if (activeRoom) {
 			resolvedRoom = activeRoom;
+		} else if (resolvedRoom.startsWith("huddle-")) {
+			return new Response(
+				JSON.stringify({
+					error: `Huddle room not found: ${resolvedRoom}. Use the full room ID from the system notification.`,
+				}),
+				{ status: 404, headers: { "Content-Type": "application/json" } }
+			);
 		} else {
 			const ts = formatTimestamp(new Date());
 			const name = resolvedRoom.replace("direct-", "");
@@ -61,13 +70,26 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	}
 
-	// Token enforcement for huddle rooms: reject before any save
+	// Huddle token: auto-request, never 403
 	if (resolvedRoom.startsWith("huddle-") && sender !== "boss" && sender !== "system") {
 		const holder = getTokenHolder(resolvedRoom);
-		if (holder !== sender) {
+		if (holder === null) {
+			// Stick is on the table — pick it up and speak
+			requestToken(sender, resolvedRoom);
+		} else if (holder !== sender) {
+			// Someone else has the stick — queue sender, hold the message
+			requestToken(sender, resolvedRoom);
+			savePendingMessage({ id, roomId: resolvedRoom, sender, content: body, createdAt });
 			return new Response(
-				JSON.stringify({ error: `Token held by ${holder ?? "none"}. Request it first.` }),
-				{ status: 403, headers: { "Content-Type": "application/json" } }
+				JSON.stringify({
+					id,
+					conversationId: resolvedRoom,
+					sender,
+					content: body,
+					createdAt,
+					queued: true,
+				}),
+				{ headers: { "Content-Type": "application/json" } }
 			);
 		}
 	}

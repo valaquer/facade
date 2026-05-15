@@ -81,6 +81,15 @@ export function initDb(): void {
 			tokenQueue TEXT NOT NULL DEFAULT '[]'
 		)
 	`);
+	db.exec(`
+		CREATE TABLE IF NOT EXISTS pending_messages (
+			id TEXT PRIMARY KEY,
+			roomId TEXT NOT NULL,
+			sender TEXT NOT NULL,
+			content TEXT NOT NULL,
+			createdAt TEXT NOT NULL
+		)
+	`);
 }
 
 export function saveMessage(msg: StoredMessage): void {
@@ -287,4 +296,51 @@ export function markRoomPast(id: string, pastId: string, startedAt: string): voi
 export function deleteRoom(id: string): void {
 	initDb();
 	db.prepare("DELETE FROM rooms WHERE id = ?").run(id);
+}
+
+export function savePendingMessage(msg: {
+	id: string;
+	roomId: string;
+	sender: string;
+	content: string;
+	createdAt: string;
+}): void {
+	initDb();
+	db.prepare(
+		"INSERT INTO pending_messages (id, roomId, sender, content, createdAt) VALUES (?, ?, ?, ?, ?)"
+	).run(msg.id, msg.roomId, msg.sender, msg.content, msg.createdAt);
+}
+
+interface PendingMessage {
+	id: string;
+	roomId: string;
+	sender: string;
+	content: string;
+	createdAt: string;
+}
+
+export function getPendingMessages(roomId: string, sender: string): PendingMessage[] {
+	initDb();
+	return db
+		.prepare(
+			"SELECT * FROM pending_messages WHERE roomId = ? AND sender = ? ORDER BY createdAt ASC"
+		)
+		.all(roomId, sender) as PendingMessage[];
+}
+
+export function getAllPendingMessages(roomId: string): PendingMessage[] {
+	initDb();
+	return db
+		.prepare("SELECT * FROM pending_messages WHERE roomId = ? ORDER BY createdAt ASC")
+		.all(roomId) as PendingMessage[];
+}
+
+export function deletePendingMessages(roomId: string, sender: string): void {
+	initDb();
+	db.prepare("DELETE FROM pending_messages WHERE roomId = ? AND sender = ?").run(roomId, sender);
+}
+
+export function deleteAllPendingMessages(roomId: string): void {
+	initDb();
+	db.prepare("DELETE FROM pending_messages WHERE roomId = ?").run(roomId);
 }

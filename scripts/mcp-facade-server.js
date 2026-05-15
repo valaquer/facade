@@ -54,7 +54,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 		});
 
 		if (!res.ok) {
-			return { content: [{ type: "text", text: `Error: Facade returned ${res.status}` }] };
+			const text = await res.text();
+			let msg = `Error ${res.status}`;
+			try {
+				const parsed = JSON.parse(text);
+				if (parsed.error) msg += `: ${parsed.error}`;
+			} catch {
+				if (text) msg += `: ${text}`;
+			}
+			return { content: [{ type: "text", text: msg }] };
 		}
 
 		return { content: [{ type: "text", text: `Message sent to room ${room}.` }] };

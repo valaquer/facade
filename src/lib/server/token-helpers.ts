@@ -4,12 +4,84 @@ import {
 	getTokenHolder,
 	getHuddleMembers,
 	saveMessage,
+	getPendingMessages,
+	getAllPendingMessages,
+	deletePendingMessages,
+	deleteAllPendingMessages,
 } from "./facade-db";
 import { emitEvent } from "./events";
 import { sendToKitty } from "./kitten";
 import { v4 } from "uuid";
 
 const tokenTimers = new Map<string, NodeJS.Timeout>();
+
+function deliverPending(roomId: string, sender: string): void {
+	const pending = getPendingMessages(roomId, sender);
+	if (pending.length === 0) return;
+	const members = getHuddleMembers(roomId);
+	for (const pm of pending) {
+		saveMessage({
+			id: pm.id,
+			conversationId: roomId,
+			sender: pm.sender,
+			content: pm.content,
+			createdAt: pm.createdAt,
+			type: "message",
+		});
+		emitEvent({
+			type: "message",
+			conversationId: roomId,
+			sender: pm.sender,
+			content: pm.content,
+			timestamp: pm.createdAt,
+		});
+		for (const m of members) {
+			if (m !== pm.sender) {
+				sendToKitty(m, {
+					sender: pm.sender,
+					room: roomId,
+					body: pm.content,
+					timestamp: pm.createdAt,
+				}).catch(() => {});
+			}
+		}
+	}
+	deletePendingMessages(roomId, sender);
+}
+
+export function deliverAllPending(roomId: string): void {
+	const pending = getAllPendingMessages(roomId);
+	if (pending.length === 0) return;
+	const members = getHuddleMembers(roomId);
+	for (const pm of pending) {
+		saveMessage({
+			id: pm.id,
+			conversationId: roomId,
+			sender: pm.sender,
+			content: pm.content,
+			createdAt: pm.createdAt,
+			type: "message",
+		});
+		emitEvent({
+			type: "message",
+			conversationId: roomId,
+			sender: pm.sender,
+			content: pm.content,
+			timestamp: pm.createdAt,
+		});
+		for (const m of members) {
+			if (m !== pm.sender) {
+				sendToKitty(m, {
+					sender: pm.sender,
+					room: roomId,
+					body: pm.content,
+					timestamp: pm.createdAt,
+				}).catch(() => {});
+			}
+		}
+	}
+	deleteAllPendingMessages(roomId);
+}
 
 export function advanceTokenAndNotify(roomId: string, releasedBy: string): string | null {
 	const result = releaseToken(roomId, releasedBy);
@@ -45,10 +117,15 @@ export function advanceTokenAndNotify(roomId: string, releasedBy: string): strin
 		}).catch(() => {});
 	}
 
+	// Deliver any held messages for the new token holder
+	deliverPending(roomId, next);
+
 	return next;
 }
 
 export function clearTokensAndNotify(roomId: string): void {
+	// Deliver all held messages before clearing — don't discard teammate work
+	deliverAllPending(roomId);
 	clearAllTokens(roomId);
 	const members = getHuddleMembers(roomId);
 	const now = new Date().toISOString();
