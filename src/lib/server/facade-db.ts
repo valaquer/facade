@@ -74,6 +74,13 @@ export function initDb(): void {
 	} catch {
 		// column already exists
 	}
+	db.exec(`
+		CREATE TABLE IF NOT EXISTS huddle_tokens (
+			roomId TEXT PRIMARY KEY REFERENCES rooms(id),
+			tokenHolder TEXT,
+			tokenQueue TEXT NOT NULL DEFAULT '[]'
+		)
+	`);
 }
 
 export function saveMessage(msg: StoredMessage): void {
@@ -98,6 +105,93 @@ export function resolveActiveRoom(originalRoomId: string): string | null {
 	);
 	const row = stmt.get(originalRoomId) as { id: string } | undefined;
 	return row?.id ?? null;
+}
+
+export function getHuddleMembers(roomId: string): string[] {
+	initDb();
+	const room = getRoom(roomId);
+	if (!room) return [];
+	try {
+		return JSON.parse(room.participants) as string[];
+	} catch {
+		return [];
+	}
+}
+
+export function requestToken(sender: string, roomId: string): string {
+	initDb();
+	const existing = db
+		.prepare("SELECT tokenHolder, tokenQueue FROM huddle_tokens WHERE roomId = ?")
+		.get(roomId) as { tokenHolder: string | null; tokenQueue: string } | undefined;
+	if (!existing) return "no_huddle";
+
+	const queue: [string, string][] = JSON.parse(existing.tokenQueue);
+	const holder = existing.tokenHolder;
+
+	if (holder === sender) return "already_holding: you have the token";
+	for (const item of queue) {
+		if (item[0] === sender) {
+			const pos = queue.indexOf(item) + 1;
+			return `already_queued: position ${pos} (of ${queue.length})`;
+		}
+	}
+
+	if (holder === null && queue.length === 0) {
+		db.prepare("UPDATE huddle_tokens SET tokenHolder = ? WHERE roomId = ?").run(sender, roomId);
+		return "granted: you have the token";
+	}
+
+	queue.push([sender, new Date().toISOString()]);
+	db.prepare("UPDATE huddle_tokens SET tokenQueue = ? WHERE roomId = ?").run(
+		JSON.stringify(queue),
+		roomId
+	);
+	return `queued: position ${queue.length}`;
+}
+
+export function releaseToken(roomId: string, sender: string): string {
+	initDb();
+	const existing = db
+		.prepare("SELECT tokenHolder, tokenQueue FROM huddle_tokens WHERE roomId = ?")
+		.get(roomId) as { tokenHolder: string | null; tokenQueue: string } | undefined;
+	if (!existing) return "no_huddle";
+
+	if (existing.tokenHolder !== sender) {
+		const queue: [string, string][] = JSON.parse(existing.tokenQueue);
+		const idx = queue.findIndex((item) => item[0] === sender);
+		if (idx >= 0) {
+			queue.splice(idx, 1);
+			db.prepare("UPDATE huddle_tokens SET tokenQueue = ? WHERE roomId = ?").run(
+				JSON.stringify(queue),
+				roomId
+			);
+			return "removed: you left the queue";
+		}
+		return "not_in_queue";
+	}
+
+	const queue: [string, string][] = JSON.parse(existing.tokenQueue);
+	if (queue.length > 0) {
+		const next = queue.shift();
+		if (next) {
+			db.prepare("UPDATE huddle_tokens SET tokenHolder = ?, tokenQueue = ? WHERE roomId = ?").run(
+				next[0],
+				JSON.stringify(queue),
+				roomId
+			);
+			return `released: token advanced to ${next[0]}`;
+		}
+	}
+
+	db.prepare("UPDATE huddle_tokens SET tokenHolder = NULL, tokenQueue = '[]' WHERE roomId = ?").run(
+		roomId
+	);
+	return "forfeited: token released (queue empty)";
+}
+
+export function initHuddleToken(roomId: string): void {
+	initDb();
+	db.prepare("INSERT OR IGNORE INTO huddle_tokens (roomId) VALUES (?)").run(roomId);
 }
 
 export function getMessages(conversationId: string): StoredMessage[] {

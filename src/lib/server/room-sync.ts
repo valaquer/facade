@@ -2,13 +2,10 @@ import { getActiveTeammatesFromKitty } from "./kitten";
 import { getActiveTeammates, activateTeammate, deactivateTeammate } from "./active-teammates";
 import { emitEvent } from "./events";
 import { saveRoom, resolveActiveRoom, setRoomType, formatTimestamp } from "./facade-db";
-import fs from "fs";
 
 const POLL_INTERVAL = 3000;
-const HUDDLE_STATE_FILE = "/tmp/kitty-huddles.json";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
-let lastHuddleState = "";
 
 export async function startRoomSync(): Promise<void> {
 	if (intervalHandle) return;
@@ -59,21 +56,7 @@ async function syncOnce(): Promise<void> {
 		}
 	}
 
-	let huddleChanged = false;
-	try {
-		const currentState = fs.readFileSync(HUDDLE_STATE_FILE, "utf-8");
-		if (currentState !== lastHuddleState) {
-			huddleChanged = true;
-			lastHuddleState = currentState;
-		}
-	} catch {
-		if (lastHuddleState !== "") {
-			huddleChanged = true;
-			lastHuddleState = "";
-		}
-	}
-
-	if (changed || huddleChanged) {
+	if (changed) {
 		emitEvent({ type: "huddle_update" });
 	}
 }
