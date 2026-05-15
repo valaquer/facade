@@ -229,7 +229,7 @@ Same flow in reverse for tab close (deactivateTeammate → SSE → sidebar updat
 
 ### Huddle Rooms
 
-Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the state file written by the huddle MCP server (Chica's `mcp-huddle/server-huddle.py`). The `/api/rooms` endpoint maps each entry to a huddle sidebar item with the host name and participant list. SSE-driven sidebar refresh picks up new huddles automatically when `loadSidebar()` is called on `huddle_update` events.
+Active huddle rooms are managed by Facade-native huddle actions in `src/routes/api/huddle/+server.ts` (REQ-61). Huddle lifecycle (start, end, add, remove participants) is handled via the `mcp-huddle-server.js` MCP server, which calls the `/api/huddle` endpoint. Rooms are stored in SQLite with type `huddle` and session-scoped IDs (`huddle-{host}-{timestamp}`). The `/api/rooms` endpoint maps each entry to a huddle sidebar item with the host name and participant list. SSE-driven sidebar refresh picks up new huddles automatically when `loadSidebar()` is called on `huddle_update` events.
 
 ### Huddle Message Flow
 
