@@ -91,7 +91,7 @@ export function startTokenTimer(roomId: string): void {
 		if (next) {
 			startTokenTimer(roomId);
 		}
-	}, 10_000);
+	}, 30_000);
 	tokenTimers.set(roomId, timer);
 }
 
