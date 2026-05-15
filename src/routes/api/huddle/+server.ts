@@ -8,8 +8,10 @@ import {
 	formatTimestamp,
 	requestToken,
 	releaseToken,
+	initHuddleToken,
 } from "$lib/server/facade-db";
 import { emitEvent } from "$lib/server/events";
+import { sendToKitty } from "$lib/server/kitten";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { v4 } from "uuid";
@@ -49,16 +51,10 @@ async function autoWake(name: string): Promise<string> {
 	}
 }
 
-async function pushToTab(name: string, text: string): Promise<void> {
-	try {
-		const escaped = text.replace(/'/g, "'\\''");
-		await execAsync(`kitten send-text --match "var:teammate=${name}" '${escaped}'`, {
-			timeout: 5000,
-		});
-		await execAsync(`kitten send-text --match "var:teammate=${name}" --send-key enter`, {
-			timeout: 3000,
-		});
-	} catch {}
+async function ensureTabOpen(name: string): Promise<string> {
+	const exists = await tabExists(name);
+	if (!exists) return await autoWake(name);
+	return "already_open";
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -83,18 +79,14 @@ export const POST: RequestHandler = async ({ request }) => {
 			lastActivity: new Date().toISOString(),
 			startedAt: new Date().toISOString(),
 		});
+		initHuddleToken(rid);
 
 		emitEvent({ type: "huddle_update" });
 
 		const results: string[] = [];
 		for (const name of allMembers) {
-			const exists = await tabExists(name);
-			if (!exists) {
-				const wakeResult = await autoWake(name);
-				results.push(`${name}: ${wakeResult}`);
-			} else {
-				results.push(`${name}: already_open`);
-			}
+			const wakeResult = await ensureTabOpen(name);
+			results.push(`${name}: ${wakeResult}`);
 		}
 
 		const invitation = `System notification: Huddle started by ${host}. Participants: ${allMembers.join(", ")}. Room: ${rid}`;
@@ -117,7 +109,12 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		for (const name of allMembers) {
 			if (name === host) continue;
-			pushToTab(name, invitation).catch(() => {});
+			sendToKitty(name, {
+				sender: "system",
+				room: rid,
+				body: invitation,
+				timestamp: msg.createdAt,
+			}).catch(() => {});
 		}
 
 		return new Response(JSON.stringify({ roomId: rid, results }), {
@@ -154,7 +151,12 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const members = getHuddleMembers(roomId);
 		for (const name of members) {
-			pushToTab(name, notification).catch(() => {});
+			sendToKitty(name, {
+				sender: "system",
+				room: roomId,
+				body: notification,
+				timestamp: msg.createdAt,
+			}).catch(() => {});
 		}
 
 		return new Response(JSON.stringify({ status: "ended", roomId }), {
@@ -185,6 +187,11 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		emitEvent({ type: "huddle_update" });
 
+		// Auto-wake new participants
+		for (const name of participants) {
+			await ensureTabOpen(name);
+		}
+
 		const notification = `System notification: ${participants.join(", ")} added to huddle ${roomId}.`;
 		const msg = {
 			id: v4(),
@@ -204,7 +211,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 
 		for (const name of updated) {
-			pushToTab(name, notification).catch(() => {});
+			sendToKitty(name, {
+				sender: "system",
+				room: roomId,
+				body: notification,
+				timestamp: msg.createdAt,
+			}).catch(() => {});
 		}
 
 		return new Response(JSON.stringify({ status: "added", roomId, participants: updated }), {
@@ -265,7 +277,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 
 		for (const name of updated) {
-			pushToTab(name, notification).catch(() => {});
+			sendToKitty(name, {
+				sender: "system",
+				room: roomId,
+				body: notification,
+				timestamp: msg.createdAt,
+			}).catch(() => {});
 		}
 
 		return new Response(JSON.stringify({ status: "removed", roomId, participants: updated }), {

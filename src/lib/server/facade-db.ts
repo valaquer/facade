@@ -189,6 +189,11 @@ export function releaseToken(roomId: string, sender: string): string {
 	return "forfeited: token released (queue empty)";
 }
 
+export function initHuddleToken(roomId: string): void {
+	initDb();
+	db.prepare("INSERT OR IGNORE INTO huddle_tokens (roomId) VALUES (?)").run(roomId);
+}
+
 export function getMessages(conversationId: string): StoredMessage[] {
 	initDb();
 	const stmt = db.prepare("SELECT * FROM messages WHERE conversationId = ? ORDER BY createdAt ASC");
