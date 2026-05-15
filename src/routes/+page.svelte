@@ -321,7 +321,7 @@
 		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 130px;" bind:this={messagesContainer}>
 			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 				{#each currentMessages as msg}
-					<div style="padding-top: calc(2rem - 1px); text-align: left; align-self: start;">
+					<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
 						<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
 					</div>
 					<div style="padding-top: 2rem;">
