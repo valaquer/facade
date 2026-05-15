@@ -258,6 +258,7 @@ Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/
 | REQ-057 | Delete old communication tools — removed send_message (honeybloom-mailbox MCP) and post_in_huddle (honeybloom-huddle) from all teammate configs and server-huddle.py. Facade post_to_facade is the replacement. | Shipped |
 | REQ-058 | Sender identity fix — removed FACADE_SENDER=rio from user-level ~/.claude.json. CWD-based derivation (`basename(process.cwd())`) now takes effect for all 30 Claude Code teammates. Type C — takes effect on session restart. | Shipped |
 | REQ-060 | Session-scoped room IDs — per-session isolation for direct rooms. Room created on teammate activation with `direct-{name}-{timestamp}` ID. Past rooms display full ID with prefix. | Shipped |
+| REQ-061 | Facade-native huddle lifecycle tools — start_huddle, end_huddle, add_to_huddle, remove_from_huddle, request_token, release_token. SQLite huddle_tokens table, auto-wake, sendToKitty notifications. | Shipped |
 | REQ-062 | Server-side token enforcement — `/api/message` rejects huddle posts from non-holders. Boss and system exempt. `getTokenHolder()` added to facade-db. Token cleanup on participant removal. | Shipped |
 | REQ-063 | Fix token enforcement placement — check before `saveMessage`/`emitEvent` instead of after. Prevents rejected posts from appearing in Facade. | Shipped |
 | REQ-064 | Token notification delivery — fan-out "Token passed to X" to all huddle members' Kitty tabs via `sendToKitty`. Fixes deadlock where new holder didn't know it was their turn. | Shipped |
