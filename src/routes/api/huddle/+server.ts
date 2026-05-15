@@ -184,6 +184,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (!room) return new Response(JSON.stringify({ error: "Room not found" }), { status: 404 });
 
 		const current = getHuddleMembers(roomId);
+		const newlyAdded = (participants as string[]).filter((p) => !current.includes(p));
 		const updated = [...new Set([...current, ...participants])];
 		saveRoom({
 			id: roomId,
@@ -197,36 +198,37 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		emitEvent({ type: "huddle_update" });
 
-		// Auto-wake new participants
-		for (const name of participants) {
-			await ensureTabOpen(name);
-		}
+		if (newlyAdded.length > 0) {
+			for (const name of newlyAdded) {
+				await ensureTabOpen(name);
+			}
 
-		const notification = `System notification: ${participants.join(", ")} added to huddle ${roomId}.`;
-		const msg = {
-			id: v4(),
-			conversationId: roomId,
-			sender: "system",
-			content: notification,
-			createdAt: new Date().toISOString(),
-			type: "message",
-		};
-		saveMessage(msg);
-		emitEvent({
-			type: "message",
-			conversationId: roomId,
-			sender: "system",
-			content: notification,
-			timestamp: msg.createdAt,
-		});
-
-		for (const name of updated) {
-			sendToKitty(name, {
+			const notification = `System notification: ${newlyAdded.join(", ")} added to huddle ${roomId}.`;
+			const msg = {
+				id: v4(),
+				conversationId: roomId,
 				sender: "system",
-				room: roomId,
-				body: notification,
+				content: notification,
+				createdAt: new Date().toISOString(),
+				type: "message",
+			};
+			saveMessage(msg);
+			emitEvent({
+				type: "message",
+				conversationId: roomId,
+				sender: "system",
+				content: notification,
 				timestamp: msg.createdAt,
-			}).catch(() => {});
+			});
+
+			for (const name of updated) {
+				sendToKitty(name, {
+					sender: "system",
+					room: roomId,
+					body: notification,
+					timestamp: msg.createdAt,
+				}).catch(() => {});
+			}
 		}
 
 		return new Response(JSON.stringify({ status: "added", roomId, participants: updated }), {
