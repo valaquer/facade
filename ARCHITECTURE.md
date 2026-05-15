@@ -255,6 +255,7 @@ Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/
 | REQ-025 | "Fire up Markwhen" button in sidebar, symlinks markwhen-fork.html + dist/ into static/, replaces provoque.ai footer | Shipped |
 | REQ-026 | Fan-out delivery from huddle rooms — messages to huddle-{host} deliver to all members' Kitty tabs | Shipped |
 | REQ-056 | Huddle state polling in room-sync.ts — `/tmp/kitty-huddles.json` polled every 3s, `huddle_update` SSE emitted on state change | Shipped |
+| REQ-057 | Delete old communication tools — removed send_message (honeybloom-mailbox MCP) and post_in_huddle (honeybloom-huddle) from all teammate configs and server-huddle.py. Facade post_to_facade is the replacement. | Shipped |
 
 ## Conventions
 
