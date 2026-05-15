@@ -33,11 +33,11 @@
 		let outputHtml = "";
 		if (toolInput) {
 			const input = typeof toolInput === "string" ? toolInput : JSON.stringify(toolInput, null, 2);
-			inputHtml = `<div style="font-size: 11px; margin-bottom: 0.25rem; color: var(--color-text-muted);">Input:</div><pre style="background: var(--color-bg); padding: 0.5em; border-radius: 4px; overflow-x: auto; font-size: 11px; line-height: 1.5; margin: 0 0 0.75em 0;"><code>${escapeHtml(input)}</code></pre>`;
+			inputHtml = `<div style="font-size: 11px; margin-bottom: 0.25rem; color: var(--color-text-muted);">Input:</div><pre style="background: var(--color-bg); padding: 0.5em; border-radius: 4px; white-space: pre-wrap; overflow-wrap: break-word; font-size: 11px; line-height: 1.5; margin: 0 0 0.75em 0;"><code>${escapeHtml(input)}</code></pre>`;
 		}
 		if (toolOutput) {
 			const output = typeof toolOutput === "string" ? toolOutput : JSON.stringify(toolOutput, null, 2);
-			outputHtml = `<div style="font-size: 11px; margin-bottom: 0.25rem; color: var(--color-text-muted);">Output:</div><pre style="background: var(--color-bg); padding: 0.5em; border-radius: 4px; overflow-x: auto; font-size: 11px; line-height: 1.5; margin: 0;"><code>${escapeHtml(output)}</code></pre>`;
+			outputHtml = `<div style="font-size: 11px; margin-bottom: 0.25rem; color: var(--color-text-muted);">Output:</div><pre style="background: var(--color-bg); padding: 0.5em; border-radius: 4px; white-space: pre-wrap; overflow-wrap: break-word; font-size: 11px; line-height: 1.5; margin: 0;"><code>${escapeHtml(output)}</code></pre>`;
 		}
 		return `<div style="background: var(--color-bg-panel); border-radius: 4px; padding: 0.75em; margin-bottom: 0.5em;">
 			<div style="display: flex; align-items: center; gap: 0.5em; margin-bottom: 0.5em; padding-bottom: 0.5em; border-bottom: 1px solid var(--color-bg-step4);">
