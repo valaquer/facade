@@ -233,13 +233,17 @@ Active huddle rooms are discovered by reading `/tmp/kitty-huddles.json` — the 
 
 ### Huddle Message Flow
 
-Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/message` endpoint detects huddle rooms (room ID starts with `huddle-`), reads the SQLite participants list, and delivers via `sendToKitty` to every member except the sender. Token enforcement (REQ-62/63) requires huddle posters to hold the speaking token — Boss and system messages exempt. Token notifications are fanned out to all members' Kitty tabs (REQ-64).
+Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/message` endpoint detects huddle rooms (room ID starts with `huddle-`), reads the SQLite participants list, and delivers via `sendToKitty` to every member except the sender. Token notifications are fanned out to all members' Kitty tabs (REQ-64).
+
+**Room resolution (REQ-69):** Huddle rooms are session-scoped (`huddle-{host}-{timestamp}`). Short-form IDs like `huddle-claire` resolve to the active room via `resolveActiveRoom()` using `originalRoomId`. All huddle room saveRoom calls set `originalRoomId: "huddle-{host}"`. Unresolvable huddle rooms return 404 — never create phantom direct rooms.
+
+**Auto-request token (REQ-70):** Token enforcement is replaced with first-class auto-request. If the token is free, auto-grant and speak. If someone else holds it, auto-queue the sender and hold the message in `pending_messages` table. When the token advances to the queued sender, held messages are delivered automatically via `deliverPending()`. Boss-speaks and end-huddle deliver all pending messages via `deliverAllPending()` before clearing/closing. No 403 errors.
 
 ### Token Management (REQ-66/67)
 
 Shared logic in `src/lib/server/token-helpers.ts`:
 - **Boss clears (REQ-66):** When Boss posts in a huddle, token holder and queue are cleared. All members notified "Boss spoke – token released. Request to speak." Everyone re-requests fresh.
-- **10s timeout (REQ-67):** `startTokenTimer(roomId)` sets a 10s setTimeout. If the holder doesn't post, the timer calls `getTokenHolder` (fire-time lookup, no stale refs) and advances to the next in queue. Timer restarts recursively if a new holder exists.
+- **30s timeout (REQ-67):** `startTokenTimer(roomId)` sets a 30s setTimeout. If the holder doesn't post, the timer calls `getTokenHolder` (fire-time lookup, no stale refs) and advances to the next in queue. Timer restarts recursively if a new holder exists. Held messages for the new holder are delivered on advance.
 - **Timer lifecycle:** Started on grant and token advance. Cleared on post, Boss clear, manual release, participant removal, and huddle end. No orphan timers (Pattern 1).
 
 ### REQ Log
@@ -275,6 +279,12 @@ Shared logic in `src/lib/server/token-helpers.ts`:
 | REQ-062 | Server-side token enforcement — `/api/message` rejects huddle posts from non-holders. Boss and system exempt. `getTokenHolder()` added to facade-db. Token cleanup on participant removal. | Shipped |
 | REQ-063 | Fix token enforcement placement — check before `saveMessage`/`emitEvent` instead of after. Prevents rejected posts from appearing in Facade. | Shipped |
 | REQ-064 | Token notification delivery — fan-out "Token passed to X" to all huddle members' Kitty tabs via `sendToKitty`. Fixes deadlock where new holder didn't know it was their turn. | Shipped |
+| REQ-065 | Chat window jump fix via ResizeObserver — FAILED. Wrong approach (JS compensation for layout problem). Replaced by REQ-068. | Failed |
+| REQ-066 | Boss message clears token — holder and queue cleared, "Boss spoke – token released" notification to all members. | Shipped |
+| REQ-067 | Token timeout — 30s auto-release. Timer managed across all lifecycle paths. Shared token-helpers.ts module. | Shipped |
+| REQ-068 | Floating input bar — position absolute over chat area. padding-bottom clearance. Replaces REQ-065. | Shipped |
+| REQ-069 | Huddle room resolution — short-form IDs resolve to active session-scoped room via originalRoomId. Guard prevents phantom direct rooms. Ghost rooms cleaned. | Shipped |
+| REQ-070 | Auto-request token — no 403. Token free → auto-grant. Someone else holds → auto-queue + hold message in pending_messages. Delivered on token advance, Boss-speaks, or huddle end. | Shipped |
 
 ## Conventions
 
