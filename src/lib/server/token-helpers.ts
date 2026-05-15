@@ -11,7 +11,6 @@ import {
 } from "./facade-db";
 import { emitEvent } from "./events";
 import { sendToKitty } from "./kitten";
-import { v4 } from "uuid";
 
 const tokenTimers = new Map<string, NodeJS.Timeout>();
 
@@ -91,23 +90,7 @@ export function advanceTokenAndNotify(roomId: string, releasedBy: string): strin
 	const members = getHuddleMembers(roomId);
 	const now = new Date().toISOString();
 
-	const sysMsg = {
-		id: v4(),
-		conversationId: roomId,
-		sender: "system",
-		content: `Token passed to ${next}`,
-		createdAt: now,
-		type: "message",
-	};
-	saveMessage(sysMsg);
-	emitEvent({
-		type: "message",
-		conversationId: roomId,
-		sender: "system",
-		content: `Token passed to ${next}`,
-		timestamp: now,
-	});
-
+	// Token notifications go to Kitty only — not saved or displayed in Facade (REQ-77)
 	for (const m of members) {
 		sendToKitty(m, {
 			sender: "system",
@@ -131,23 +114,8 @@ export function clearTokensAndNotify(roomId: string): void {
 	const now = new Date().toISOString();
 
 	const content = "Boss spoke \u2013 token released. Request to speak.";
-	const sysMsg = {
-		id: v4(),
-		conversationId: roomId,
-		sender: "system",
-		content,
-		createdAt: now,
-		type: "message",
-	};
-	saveMessage(sysMsg);
-	emitEvent({
-		type: "message",
-		conversationId: roomId,
-		sender: "system",
-		content,
-		timestamp: now,
-	});
 
+	// Token notifications go to Kitty only — not saved or displayed in Facade (REQ-77)
 	for (const m of members) {
 		sendToKitty(m, {
 			sender: "system",

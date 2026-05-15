@@ -44,11 +44,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	const createdAt = new Date().toISOString();
 
 	let resolvedRoom = room === "direct-boss" ? `direct-${sender}` : room;
-	if (!roomExists(resolvedRoom)) {
-		const activeRoom = resolveActiveRoom(resolvedRoom);
-		if (activeRoom) {
-			resolvedRoom = activeRoom;
-		} else if (resolvedRoom.startsWith("huddle-")) {
+	// REQ-78: resolve active room FIRST — prevents past/ghost rooms from intercepting short-form IDs
+	const activeRoom = resolveActiveRoom(resolvedRoom);
+	if (activeRoom) {
+		resolvedRoom = activeRoom;
+	} else if (!roomExists(resolvedRoom)) {
+		if (resolvedRoom.startsWith("huddle-")) {
 			return new Response(
 				JSON.stringify({
 					error: `Huddle room not found: ${resolvedRoom}. Use the full room ID from the system notification.`,

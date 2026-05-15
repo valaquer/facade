@@ -231,7 +231,13 @@
 		}
 	}
 
-	let currentMessages = $derived(selectedConvId ? (conversations[selectedConvId] ?? []) : []);
+	function isTokenNoise(msg: ChatMsg): boolean {
+		if (msg.sender !== "system") return false;
+		const c = msg.content;
+		return c.startsWith("Token passed to ") || c.includes("token released");
+	}
+
+	let currentMessages = $derived(selectedConvId ? (conversations[selectedConvId] ?? []).filter((m) => !isTokenNoise(m)) : []);
 
 	$effect(() => {
 		const convId = selectedConvId;
