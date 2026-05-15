@@ -185,9 +185,11 @@ Design constants:
 | `src/lib/server/events.ts` | Wraps Node.js EventEmitter. Export: `emitEvent()`, `onEvent()`. Used for SSE push. |
 | `src/lib/server/room-sync.ts` | Polls `getActiveTeammatesFromKitty()` every 3s. Compares with active state. Calls `emitEvent()` on changes. Bootstrapped in `hooks.server.ts:init()`. |
 
-### Scroll Stability (REQ-65)
+### Floating Input Bar (REQ-68)
 
-ResizeObserver on the input bar wrapper div (`flex-shrink: 0`) compensates for autosize textarea height changes. When the textarea grows or shrinks, `messagesContainer.scrollTop` is adjusted by the exact height delta, preventing visible content from jumping. Cleanup disconnects the observer on component destroy.
+The input bar uses `position: absolute; bottom: 0` inside the `position: relative` main content container. It floats over the chat area — when the textarea grows via autosize, it expands upward over chat messages without affecting the chat scroll container's height or scroll position. The chat scroll container has `padding-bottom: 130px` to clear the default single-line input bar height (~117px + breathing room). This value is coupled to the input bar layout — if the input bar's default height changes, the padding must be updated.
+
+REQ-65 (ResizeObserver scroll compensation) was removed as dead code — the floating layout eliminates the need for JavaScript-based scroll adjustment.
 
 ### API Layer
 
