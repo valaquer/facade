@@ -1,14 +1,5 @@
 import type { RequestHandler } from "./$types";
-import { getRoomsByType, getAllRooms, saveRoom, roomExists } from "$lib/server/facade-db";
-import fs from "fs";
-
-const HUDDLE_STATE_FILE = "/tmp/kitty-huddles.json";
-
-interface HuddleEntry {
-	host: string;
-	participants: string[];
-	started: string;
-}
+import { getRoomsByType, getAllRooms, getHuddleMembers } from "$lib/server/facade-db";
 
 function parseDisplayName(roomId: string): string {
 	const match = roomId.match(/^(?:direct|huddle)-(.+?)-\d{8}-\d{6}$/);
@@ -26,58 +17,14 @@ export const GET: RequestHandler = async () => {
 		lastActivity: r.lastActivity,
 	}));
 
-	const huddles: {
-		id: string;
-		name: string;
-		host: string;
-		participants: string[];
-		startedAt: string;
-	}[] = [];
-	try {
-		const raw = fs.readFileSync(HUDDLE_STATE_FILE, "utf-8");
-		const state: Record<string, HuddleEntry> = JSON.parse(raw);
-		const activeHuddleIds = new Set<string>();
-
-		for (const [hostKey, entry] of Object.entries(state)) {
-			const id = `huddle-${hostKey}`;
-			activeHuddleIds.add(id);
-			huddles.push({
-				id,
-				name: hostKey,
-				host: entry.host,
-				participants: entry.participants,
-				startedAt: entry.started,
-			});
-
-			if (!roomExists(id)) {
-				saveRoom({
-					id,
-					type: "huddle",
-					name: hostKey,
-					participants: entry.participants,
-					lastActivity: new Date().toISOString(),
-					startedAt: entry.started,
-				});
-			}
-		}
-
-		// Move previously-known huddles that are no longer active to past rooms
-		const knownHuddles = getRoomsByType("huddle");
-		for (const known of knownHuddles) {
-			if (!activeHuddleIds.has(known.id)) {
-				saveRoom({
-					id: known.id,
-					type: "past",
-					name: known.name,
-					participants: JSON.parse(known.participants),
-					lastActivity: known.lastActivity,
-					startedAt: known.startedAt,
-				});
-			}
-		}
-	} catch {
-		// state file missing or invalid — no active huddles
-	}
+	const huddleRooms = getAllRooms().filter((r) => r.type === "huddle");
+	const huddles = huddleRooms.map((r) => ({
+		id: r.id,
+		name: parseDisplayName(r.id),
+		host: r.name,
+		participants: getHuddleMembers(r.id),
+		startedAt: r.startedAt,
+	}));
 
 	const pastRooms = getRoomsByType("past").map((r) => ({
 		id: r.id,

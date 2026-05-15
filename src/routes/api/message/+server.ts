@@ -7,11 +7,11 @@ import {
 	saveRoom,
 	formatTimestamp,
 	roomExists,
+	getHuddleMembers,
+	releaseToken,
 } from "$lib/server/facade-db";
 import { v4 } from "uuid";
 import fs from "fs";
-
-const HUDDLE_STATE_FILE = "/tmp/kitty-huddles.json";
 
 interface StoredMessage {
 	id: string;
@@ -148,23 +148,32 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	// Fan-out for huddle rooms: deliver to all members
 	if (resolvedRoom.startsWith("huddle-")) {
-		const hostKey = resolvedRoom.replace("huddle-", "").toLowerCase();
-		try {
-			const raw = fs.readFileSync(HUDDLE_STATE_FILE, "utf-8");
-			const state = JSON.parse(raw);
-			const entry = state[hostKey];
-			if (entry) {
-				const members = [entry.host, ...entry.participants];
-				for (const m of members) {
-					if (m !== sender) {
-						sendToKitty(m, { sender, room: resolvedRoom, body, timestamp: createdAt }).catch(
-							() => {}
-						);
-					}
-				}
+		const members = getHuddleMembers(resolvedRoom);
+		for (const m of members) {
+			if (m !== sender) {
+				sendToKitty(m, { sender, room: resolvedRoom, body, timestamp: createdAt }).catch(() => {});
 			}
-		} catch {
-			// huddle state file missing or corrupt — no delivery
+		}
+		// Auto-release token if sender holds it
+		const releaseResult = releaseToken(resolvedRoom, sender);
+		if (releaseResult.startsWith("released:")) {
+			const next = releaseResult.replace("released: token advanced to ", "");
+			const sysMsg = {
+				id: v4(),
+				conversationId: resolvedRoom,
+				sender: "system",
+				content: `Token passed to ${next}`,
+				createdAt: new Date().toISOString(),
+				type: "message",
+			};
+			saveMessage(sysMsg);
+			emitEvent({
+				type: "message",
+				conversationId: resolvedRoom,
+				sender: "system",
+				content: `Token passed to ${next}`,
+				timestamp: sysMsg.createdAt,
+			});
 		}
 	} else {
 		// Deliver to the room owner's Kitty tab, unless the sender owns the room
