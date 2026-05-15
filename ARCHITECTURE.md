@@ -185,6 +185,10 @@ Design constants:
 | `src/lib/server/events.ts` | Wraps Node.js EventEmitter. Export: `emitEvent()`, `onEvent()`. Used for SSE push. |
 | `src/lib/server/room-sync.ts` | Polls `getActiveTeammatesFromKitty()` every 3s. Compares with active state. Calls `emitEvent()` on changes. Bootstrapped in `hooks.server.ts:init()`. |
 
+### Scroll Stability (REQ-65)
+
+ResizeObserver on the input bar wrapper div (`flex-shrink: 0`) compensates for autosize textarea height changes. When the textarea grows or shrinks, `messagesContainer.scrollTop` is adjusted by the exact height delta, preventing visible content from jumping. Cleanup disconnects the observer on component destroy.
+
 ### API Layer
 
 | Route | Method | Purpose |
