@@ -12,6 +12,7 @@ import {
 } from "$lib/server/facade-db";
 import { emitEvent } from "$lib/server/events";
 import { sendToKitty } from "$lib/server/kitten";
+import { endHuddle } from "$lib/server/huddle-helpers";
 import { startTokenTimer, clearTokenTimer, advanceTokenAndNotify } from "$lib/server/token-helpers";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
@@ -134,37 +135,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const room = getRoom(roomId);
 		if (!room) return new Response(JSON.stringify({ error: "Room not found" }), { status: 404 });
 
-		clearTokenTimer(roomId);
-		setRoomType(roomId, "past");
-		emitEvent({ type: "huddle_update" });
-
-		const notification = `Huddle ${roomId} has ended.`;
-		const msg = {
-			id: v4(),
-			conversationId: roomId,
-			sender: "system",
-			content: notification,
-			createdAt: new Date().toISOString(),
-			type: "message",
-		};
-		saveMessage(msg);
-		emitEvent({
-			type: "message",
-			conversationId: roomId,
-			sender: "system",
-			content: notification,
-			timestamp: msg.createdAt,
-		});
-
-		const members = getHuddleMembers(roomId);
-		for (const name of members) {
-			sendToKitty(name, {
-				sender: "system",
-				room: roomId,
-				body: notification,
-				timestamp: msg.createdAt,
-			}).catch(() => {});
-		}
+		endHuddle(roomId);
 
 		return new Response(JSON.stringify({ status: "ended", roomId }), {
 			headers: { "Content-Type": "application/json" },
