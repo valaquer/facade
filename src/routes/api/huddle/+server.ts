@@ -97,7 +97,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				results.push(`${name}: ${wakeResult}`);
 			}
 
-			const invitation = `Huddle started by ${host}. Participants: ${allMembers.join(", ")}. Room: ${rid}\n\nThe huddle is a time to debate, decide and get work done. Do your assigned or self-assigned work right here in the huddle. Don't leave things for later.`;
+			const invitation = `Huddle started by ${host}. Participants: ${allMembers.join(", ")}. Room: ${rid}`;
 			const msg = {
 				id: v4(),
 				conversationId: rid,
