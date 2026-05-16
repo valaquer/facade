@@ -68,7 +68,7 @@ export async function sendToKitty(
 				"disable",
 				text,
 			],
-			{ timeout: 5000 }
+			{ timeout: 30000 }
 		);
 
 		await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -90,7 +90,7 @@ export async function getActiveTeammatesFromKitty(): Promise<string[]> {
 	if (!socket) return [];
 
 	try {
-		const { stdout } = await execFileAsync(KITTEN, ["@", "--to", socket, "ls"], { timeout: 5000 });
+		const { stdout } = await execFileAsync(KITTEN, ["@", "--to", socket, "ls"], { timeout: 30000 });
 		const data = JSON.parse(stdout);
 		const teammates: string[] = [];
 
