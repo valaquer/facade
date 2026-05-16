@@ -76,9 +76,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			return new Response(
 				JSON.stringify({
 					rejected: true,
-					message: "Wait your turn. Request the token to speak.",
+					message:
+						"Your message was not delivered. You need to request the token before posting in a huddle.",
 				}),
-				{ status: 200, headers: { "Content-Type": "application/json" } }
+				{ status: 403, headers: { "Content-Type": "application/json" } }
 			);
 		}
 	}
