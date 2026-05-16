@@ -96,10 +96,10 @@
 			const [, n, y, mo, d, h, mi] = directMatch;
 			return { label: n.charAt(0).toUpperCase() + n.slice(1), date: `${parseInt(d)} ${months[parseInt(mo)-1]} ${y} ${h}:${mi}` };
 		}
-		// huddle-{YYYYMMDD}-{HHMMSS}-{host}
-		const huddleMatch = name.match(/^huddle-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}-(.+)$/);
+		// huddle-{host}-{YYYYMMDD}-{HHMMSS}
+		const huddleMatch = name.match(/^huddle-(.+)-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}$/);
 		if (huddleMatch) {
-			const [, y, mo, d, h, mi, host] = huddleMatch;
+			const [, host, y, mo, d, h, mi] = huddleMatch;
 			return { label: host.charAt(0).toUpperCase() + host.slice(1) + "'s huddle", date: `${parseInt(d)} ${months[parseInt(mo)-1]} ${y} ${h}:${mi}` };
 		}
 		return { label: name, date: "" };
@@ -299,11 +299,12 @@
 			</div>
 			<div style="padding: 0.5rem 0 60px 0;">
 			{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
+				{@const fmt = formatPastRoom(item.id)}
 				<div
 					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
 					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
 				>
-					<div>{item.name}</div>
+					<div>{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 					{#if item.participants?.length}
 						<div style="font-size: 9px; line-height: 1.6; color: #666;">{item.participants.join(', ')}</div>
 					{/if}
