@@ -6,6 +6,17 @@ const execFileAsync = promisify(execFile);
 
 const KITTEN = "/opt/homebrew/bin/kitten";
 
+// Per-teammate send queue: serializes sendToKitty calls so two payloads
+// never interleave in the same PTY input buffer (REQ-98)
+const sendQueues = new Map<string, Promise<void>>();
+
+function enqueue(teammate: string, fn: () => Promise<void>): Promise<void> {
+	const prev = sendQueues.get(teammate) ?? Promise.resolve();
+	const next = prev.then(fn, fn);
+	sendQueues.set(teammate, next);
+	return next;
+}
+
 async function discoverSocket(): Promise<string | null> {
 	const envSocket = process.env.KITTY_LISTEN_ON;
 
@@ -39,60 +50,66 @@ async function discoverSocket(): Promise<string | null> {
 	return null;
 }
 
-export async function sendToKitty(
+export function sendToKitty(
 	teammate: string,
 	payload: { sender: string; room: string; body: string; timestamp: string }
 ): Promise<string> {
-	const socket = await discoverSocket();
-	if (!socket) return "no_socket";
+	let result = "queued";
+	const work = enqueue(teammate, async () => {
+		const socket = await discoverSocket();
+		if (!socket) {
+			result = "no_socket";
+			return;
+		}
 
-	const text = [
-		`sender: ${payload.sender}`,
-		`room: ${payload.room}`,
-		`timestamp: ${payload.timestamp}`,
-		`body: "${payload.body}"`,
-	].join("\n");
+		const text = [
+			`sender: ${payload.sender}`,
+			`room: ${payload.room}`,
+			`timestamp: ${payload.timestamp}`,
+			`body: "${payload.body}"`,
+		].join("\n");
 
-	try {
-		const len = text.length;
-		const sendTimeout = Math.min(Math.max(5000, len * 2), 30000);
-		const enterDelay = Math.min(Math.max(1000, len * 0.5), 10000);
-		const t0 = Date.now();
+		try {
+			const len = text.length;
+			const sendTimeout = Math.min(Math.max(5000, len * 2), 30000);
+			const enterDelay = Math.min(Math.max(1000, len * 0.5), 10000);
+			const t0 = Date.now();
 
-		const execFileAsyncBound = execFileAsync;
-		await execFileAsyncBound(
-			KITTEN,
-			[
-				"@",
-				"--to",
-				socket,
-				"send-text",
-				"--match",
-				`var:teammate=${teammate}`,
-				"--bracketed-paste",
-				"disable",
-				text,
-			],
-			{ timeout: sendTimeout }
-		);
+			await execFileAsync(
+				KITTEN,
+				[
+					"@",
+					"--to",
+					socket,
+					"send-text",
+					"--match",
+					`var:teammate=${teammate}`,
+					"--bracketed-paste",
+					"disable",
+					text,
+				],
+				{ timeout: sendTimeout }
+			);
 
-		const sendDuration = Date.now() - t0;
-		console.log(
-			`[sendToKitty] to=${teammate} len=${len} timeout=${sendTimeout}ms delay=${enterDelay}ms sendDuration=${sendDuration}ms`
-		);
+			const sendDuration = Date.now() - t0;
+			console.log(
+				`[sendToKitty] to=${teammate} len=${len} timeout=${sendTimeout}ms delay=${enterDelay}ms sendDuration=${sendDuration}ms`
+			);
 
-		await new Promise((resolve) => setTimeout(resolve, enterDelay));
+			await new Promise((resolve) => setTimeout(resolve, enterDelay));
 
-		await execFileAsyncBound(
-			KITTEN,
-			["@", "--to", socket, "send-key", "--match", `var:teammate=${teammate}`, "enter"],
-			{ timeout: 3000 }
-		);
+			await execFileAsync(
+				KITTEN,
+				["@", "--to", socket, "send-key", "--match", `var:teammate=${teammate}`, "enter"],
+				{ timeout: 3000 }
+			);
 
-		return "delivered";
-	} catch (err) {
-		return `error: ${err instanceof Error ? err.message : String(err)}`;
-	}
+			result = "delivered";
+		} catch (err) {
+			result = `error: ${err instanceof Error ? err.message : String(err)}`;
+		}
+	});
+	return work.then(() => result);
 }
 
 export async function getActiveTeammatesFromKitty(): Promise<string[]> {
