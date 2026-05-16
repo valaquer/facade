@@ -316,11 +316,11 @@
 				</div>
 				<div style="padding: 0.5rem 0 60px 0;">
 				{#each sidebarItems.filter((x) => x.kind === "past") as item}
+					{@const fmt = formatPastRoom(item.name)}
 					<div
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
 					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
 					>
-						{@const fmt = formatPastRoom(item.name)}
 						<div>{fmt.label} {#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 					</div>
 				{/each}
