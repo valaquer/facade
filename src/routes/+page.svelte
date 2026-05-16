@@ -284,11 +284,12 @@
 			</div>
 			<div style="padding: 0.5rem 0 60px 0;">
 				{#each sidebarItems.filter((x) => x.kind === "teammate") as item}
+					{@const fmt = formatPastRoom(item.id)}
 					<div
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
 						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
 					>
-						{item.name}
+						{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}
 					</div>
 				{/each}
 			</div>
