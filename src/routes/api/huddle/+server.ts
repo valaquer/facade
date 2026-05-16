@@ -12,12 +12,7 @@ import {
 } from "$lib/server/facade-db";
 import { emitEvent } from "$lib/server/events";
 import { sendToKitty } from "$lib/server/kitten";
-import {
-	startTokenTimer,
-	clearTokenTimer,
-	advanceTokenAndNotify,
-	deliverAllPending,
-} from "$lib/server/token-helpers";
+import { startTokenTimer, clearTokenTimer, advanceTokenAndNotify } from "$lib/server/token-helpers";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { v4 } from "uuid";
@@ -140,7 +135,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (!room) return new Response(JSON.stringify({ error: "Room not found" }), { status: 404 });
 
 		clearTokenTimer(roomId);
-		deliverAllPending(roomId);
 		setRoomType(roomId, "past");
 		emitEvent({ type: "huddle_update" });
 

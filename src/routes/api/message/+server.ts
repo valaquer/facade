@@ -9,8 +9,6 @@ import {
 	roomExists,
 	getHuddleMembers,
 	getTokenHolder,
-	requestToken,
-	savePendingMessage,
 } from "$lib/server/facade-db";
 import {
 	advanceTokenAndNotify,
@@ -71,26 +69,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 	}
 
-	// Huddle token: auto-request, never 403
+	// Huddle token: must hold token to post
 	if (resolvedRoom.startsWith("huddle-") && sender !== "boss" && sender !== "system") {
 		const holder = getTokenHolder(resolvedRoom);
-		if (holder === null) {
-			// Stick is on the table — pick it up and speak
-			requestToken(sender, resolvedRoom);
-		} else if (holder !== sender) {
-			// Someone else has the stick — queue sender, hold the message
-			requestToken(sender, resolvedRoom);
-			savePendingMessage({ id, roomId: resolvedRoom, sender, content: body, createdAt });
+		if (holder !== sender) {
 			return new Response(
 				JSON.stringify({
-					id,
-					conversationId: resolvedRoom,
-					sender,
-					content: body,
-					createdAt,
-					queued: true,
+					rejected: true,
+					message: "Wait your turn. Request the token to speak.",
 				}),
-				{ headers: { "Content-Type": "application/json" } }
+				{ status: 200, headers: { "Content-Type": "application/json" } }
 			);
 		}
 	}
