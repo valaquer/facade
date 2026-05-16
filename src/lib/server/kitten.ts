@@ -54,6 +54,11 @@ export async function sendToKitty(
 	].join("\n");
 
 	try {
+		const len = text.length;
+		const sendTimeout = Math.min(Math.max(5000, len * 2), 30000);
+		const enterDelay = Math.min(Math.max(1000, len * 0.5), 10000);
+		const t0 = Date.now();
+
 		const execFileAsyncBound = execFileAsync;
 		await execFileAsyncBound(
 			KITTEN,
@@ -68,10 +73,15 @@ export async function sendToKitty(
 				"disable",
 				text,
 			],
-			{ timeout: 30000 }
+			{ timeout: sendTimeout }
 		);
 
-		await new Promise((resolve) => setTimeout(resolve, 1000));
+		const sendDuration = Date.now() - t0;
+		console.log(
+			`[sendToKitty] to=${teammate} len=${len} timeout=${sendTimeout}ms delay=${enterDelay}ms sendDuration=${sendDuration}ms`
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, enterDelay));
 
 		await execFileAsyncBound(
 			KITTEN,
