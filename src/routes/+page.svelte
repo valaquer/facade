@@ -94,13 +94,13 @@
 		const directMatch = name.match(/^direct-(.+)-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}$/);
 		if (directMatch) {
 			const [, n, y, mo, d, h, mi] = directMatch;
-			return { label: n.charAt(0).toUpperCase() + n.slice(1), date: `${parseInt(d)} ${months[parseInt(mo)-1]} ${y} ${h}:${mi}` };
+			return { label: n, date: `${parseInt(d)} ${months[parseInt(mo)-1]} ${y} ${h}:${mi}` };
 		}
 		// huddle-{host}-{YYYYMMDD}-{HHMMSS}
 		const huddleMatch = name.match(/^huddle-(.+)-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}$/);
 		if (huddleMatch) {
 			const [, host, y, mo, d, h, mi] = huddleMatch;
-			return { label: host.charAt(0).toUpperCase() + host.slice(1) + "'s huddle", date: `${parseInt(d)} ${months[parseInt(mo)-1]} ${y} ${h}:${mi}` };
+			return { label: host + "'s huddle", date: `${parseInt(d)} ${months[parseInt(mo)-1]} ${y} ${h}:${mi}` };
 		}
 		return { label: name, date: "" };
 	}
@@ -342,7 +342,7 @@
 			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 				{#each currentMessages as msg}
 					<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
-						<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1)}</p>
+						<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
 					</div>
 					<div style="padding-top: 2rem;">
 						<div style="border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : '2px solid transparent'}; padding-left: 1.5rem;">
@@ -362,7 +362,7 @@
 		<div style="position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-bg);">
 		<div style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 			<div style="padding-top: calc(2rem + 0.5rem - 1px); text-align: left; align-self: start;">
-				<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">Boss</p>
+				<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">boss</p>
 			</div>
 			<div style="padding-top: 2rem; padding-bottom: 1rem;">
 				<form onsubmit={(e) => { e.preventDefault(); sendMessage(); }}>
