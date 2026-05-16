@@ -342,7 +342,7 @@
 			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 				{#each currentMessages as msg}
 					<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
-						<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
+						<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1)}</p>
 					</div>
 					<div style="padding-top: 2rem;">
 						<div style="border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : '2px solid transparent'}; padding-left: 1.5rem;">
@@ -362,7 +362,7 @@
 		<div style="position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-bg);">
 		<div style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 			<div style="padding-top: calc(2rem + 0.5rem - 1px); text-align: left; align-self: start;">
-				<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">boss</p>
+				<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">Boss</p>
 			</div>
 			<div style="padding-top: 2rem; padding-bottom: 1rem;">
 				<form onsubmit={(e) => { e.preventDefault(); sendMessage(); }}>
