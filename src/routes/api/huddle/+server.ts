@@ -88,40 +88,44 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 		initHuddleToken(rid);
 
-		emitEvent({ type: "huddle_update" });
-
 		const results: string[] = [];
-		for (const name of allMembers) {
-			const wakeResult = await ensureTabOpen(name);
-			results.push(`${name}: ${wakeResult}`);
-		}
+		try {
+			emitEvent({ type: "huddle_update" });
 
-		const invitation = `Huddle started by ${host}. Participants: ${allMembers.join(", ")}. Room: ${rid}\n\nThe huddle is a time to debate, decide and get work done. Do your assigned or self-assigned work right here in the huddle. Don't leave things for later.`;
-		const msg = {
-			id: v4(),
-			conversationId: rid,
-			sender: "system",
-			content: invitation,
-			createdAt: new Date().toISOString(),
-			type: "message",
-		};
-		saveMessage(msg);
-		emitEvent({
-			type: "message",
-			conversationId: rid,
-			sender: "system",
-			content: invitation,
-			timestamp: msg.createdAt,
-		});
+			for (const name of allMembers) {
+				const wakeResult = await ensureTabOpen(name);
+				results.push(`${name}: ${wakeResult}`);
+			}
 
-		for (const name of allMembers) {
-			if (name === host) continue;
-			sendToKitty(name, {
+			const invitation = `Huddle started by ${host}. Participants: ${allMembers.join(", ")}. Room: ${rid}\n\nThe huddle is a time to debate, decide and get work done. Do your assigned or self-assigned work right here in the huddle. Don't leave things for later.`;
+			const msg = {
+				id: v4(),
+				conversationId: rid,
 				sender: "system",
-				room: rid,
-				body: invitation,
+				content: invitation,
+				createdAt: new Date().toISOString(),
+				type: "message",
+			};
+			saveMessage(msg);
+			emitEvent({
+				type: "message",
+				conversationId: rid,
+				sender: "system",
+				content: invitation,
 				timestamp: msg.createdAt,
-			}).catch(() => {});
+			});
+
+			for (const name of allMembers) {
+				if (name === host) continue;
+				sendToKitty(name, {
+					sender: "system",
+					room: rid,
+					body: invitation,
+					timestamp: msg.createdAt,
+				}).catch(() => {});
+			}
+		} catch (e) {
+			results.push(`post-commit error: ${e}`);
 		}
 
 		return new Response(JSON.stringify({ roomId: rid, results }), {
