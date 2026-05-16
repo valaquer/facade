@@ -304,7 +304,7 @@
 				>
 					<div>{item.name}</div>
 					{#if item.participants?.length}
-						<div style="font-size: 9px; line-height: 1.6; color: #999;">{item.participants.join(', ')}</div>
+						<div style="font-size: 9px; line-height: 1.6; color: #666;">{item.participants.join(', ')}</div>
 					{/if}
 				</div>
 			{/each}
