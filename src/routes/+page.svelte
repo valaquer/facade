@@ -88,6 +88,23 @@
 	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; participants?: string[] };
 	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean };
 
+	function formatPastRoom(name: string): { label: string; date: string } {
+		const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+		// direct-{name}-{YYYYMMDD}-{HHMMSS}
+		const directMatch = name.match(/^direct-(.+)-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}$/);
+		if (directMatch) {
+			const [, n, y, mo, d, h, mi] = directMatch;
+			return { label: n.charAt(0).toUpperCase() + n.slice(1), date: `${parseInt(d)} ${months[parseInt(mo)-1]} ${y} ${h}:${mi}` };
+		}
+		// huddle-{YYYYMMDD}-{HHMMSS}-{host}
+		const huddleMatch = name.match(/^huddle-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}-(.+)$/);
+		if (huddleMatch) {
+			const [, y, mo, d, h, mi, host] = huddleMatch;
+			return { label: host.charAt(0).toUpperCase() + host.slice(1) + "'s huddle", date: `${parseInt(d)} ${months[parseInt(mo)-1]} ${y} ${h}:${mi}` };
+		}
+		return { label: name, date: "" };
+	}
+
 	let sidebarItems = $state<SidebarItem[]>([]);
 	let selectedIndex = $state(0);
 	let conversations = $state<Record<string, ChatMsg[]>>({});
@@ -303,7 +320,8 @@
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
 					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
 					>
-						<div>{item.name}</div>
+						{@const fmt = formatPastRoom(item.name)}
+						<div>{fmt.label} {#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 					</div>
 				{/each}
 				</div>
