@@ -191,6 +191,29 @@ html, body {
 	margin: 0.15em 0;
 }
 
+.md-content li:has(> input[type="checkbox"]) {
+	list-style: none;
+}
+
+.md-content input[type="checkbox"] {
+	appearance: none;
+	width: 14px;
+	height: 14px;
+	border: 1.5px solid #a8a89e;
+	border-radius: 2px;
+	background-color: #a8a89e;
+	vertical-align: middle;
+	margin-right: 6px;
+	cursor: default;
+}
+
+.md-content input[type="checkbox"]:checked {
+	background-color: #568203;
+	border-color: #568203;
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 14 14' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 7l3 3 5-5' stroke='%23CDCCC2' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+	background-size: 100%;
+}
+
 .md-content a {
 	background: linear-gradient(90deg, #f5a742, #8b5e3c);
 	-webkit-background-clip: text;
