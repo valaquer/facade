@@ -113,7 +113,7 @@ export function clearTokensAndNotify(roomId: string): void {
 	const members = getHuddleMembers(roomId);
 	const now = new Date().toISOString();
 
-	const content = "Boss spoke \u2013 token released. Request to speak.";
+	const content = "Token available, if you wish to speak.";
 
 	// Token notifications go to Kitty only — not saved or displayed in Facade (REQ-77)
 	for (const m of members) {

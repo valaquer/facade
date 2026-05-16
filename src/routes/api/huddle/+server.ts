@@ -96,7 +96,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			results.push(`${name}: ${wakeResult}`);
 		}
 
-		const invitation = `System notification: Huddle started by ${host}. Participants: ${allMembers.join(", ")}. Room: ${rid}`;
+		const invitation = `Huddle started by ${host}. Participants: ${allMembers.join(", ")}. Room: ${rid}\n\nThe huddle is a time to debate, decide and get work done. Do your assigned or self-assigned work right here in the huddle. Don't leave things for later.`;
 		const msg = {
 			id: v4(),
 			conversationId: rid,
@@ -140,7 +140,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		setRoomType(roomId, "past");
 		emitEvent({ type: "huddle_update" });
 
-		const notification = `System notification: Huddle ${roomId} has ended.`;
+		const notification = `Huddle ${roomId} has ended.`;
 		const msg = {
 			id: v4(),
 			conversationId: roomId,
@@ -203,7 +203,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				await ensureTabOpen(name);
 			}
 
-			const notification = `System notification: ${newlyAdded.join(", ")} added to huddle ${roomId}.`;
+			const notification = `${newlyAdded.join(", ")} added to huddle ${roomId}.`;
 			const msg = {
 				id: v4(),
 				conversationId: roomId,
@@ -280,7 +280,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		}
 
-		const notification = `System notification: ${participants.join(", ")} removed from huddle ${roomId}.`;
+		const notification = `${participants.join(", ")} removed from huddle ${roomId}.`;
 		const msg = {
 			id: v4(),
 			conversationId: roomId,
