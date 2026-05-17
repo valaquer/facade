@@ -111,6 +111,19 @@
 	let newMessage = $state("");
 	let eventSource: EventSource | undefined;
 	let messagesContainer: HTMLElement | undefined = $state();
+	let userScrolledUp = $state(false);
+	let lastScrollTop = 0;
+
+	function handleChatScroll() {
+		if (!messagesContainer) return;
+		const { scrollTop, scrollHeight, clientHeight } = messagesContainer;
+		if (scrollTop < lastScrollTop) {
+			userScrolledUp = true;
+		} else if (scrollTop + clientHeight >= scrollHeight - 50) {
+			userScrolledUp = false;
+		}
+		lastScrollTop = scrollTop;
+	}
 
 	let selectedConvId = $derived(sidebarItems[selectedIndex]?.id ?? "");
 
@@ -164,6 +177,7 @@
 		if (!content || !selectedConvId) return;
 		newMessage = "";
 		if (inputRef) inputRef.style.height = '';
+		userScrolledUp = false;
 
 		try {
 			const res = await fetch("/api/message", {
@@ -198,7 +212,7 @@
 					};
 					conversations[convId] = [...(conversations[convId] ?? []), msg];
 					conversations = conversations;
-					if (convId === selectedConvId) {
+					if (convId === selectedConvId && !userScrolledUp) {
 						setTimeout(scrollToBottom, 50);
 					}
 				}
@@ -267,7 +281,7 @@
 					setTimeout(scrollToBottom, 50);
 				})
 				.catch(() => {});
-		} else if (convId) {
+		} else if (convId && !userScrolledUp) {
 			setTimeout(scrollToBottom, 50);
 		}
 	});
@@ -338,7 +352,7 @@
 	<div class="flex-1 flex flex-col" style="height: 100vh; position: relative;">
 	{#if selectedConvId}
 		<!-- Conversation area (scrollable) -->
-		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 130px;" bind:this={messagesContainer}>
+		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 130px;" bind:this={messagesContainer} onscroll={handleChatScroll}>
 			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 				{#each currentMessages as msg}
 					<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
