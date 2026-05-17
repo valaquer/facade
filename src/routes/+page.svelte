@@ -285,9 +285,34 @@
 			setTimeout(scrollToBottom, 50);
 		}
 	});
+
+	// Ruler overlay
+	let showRuler = $state(false);
+	let rulerX = $state(100);
+	let rulerY = $state(200);
+	let dragging = $state(false);
+	let dragOffsetX = 0;
+	let dragOffsetY = 0;
+
+	function onRulerMouseDown(e: MouseEvent) {
+		dragging = true;
+		dragOffsetX = e.clientX - rulerX;
+		dragOffsetY = e.clientY - rulerY;
+		e.preventDefault();
+	}
+
+	function onRulerMouseMove(e: MouseEvent) {
+		if (!dragging) return;
+		rulerX = e.clientX - dragOffsetX;
+		rulerY = e.clientY - dragOffsetY;
+	}
+
+	function onRulerMouseUp() {
+		dragging = false;
+	}
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onmousemove={onRulerMouseMove} onmouseup={onRulerMouseUp} />
 
 <div class="h-full flex">
 	<!-- Sidebar -->
@@ -405,3 +430,20 @@
 	{/if}
 	</div>
 </div>
+
+<!-- Ruler toggle button -->
+<button
+	onclick={() => showRuler = !showRuler}
+	style="position: fixed; bottom: 12px; right: 12px; z-index: 10000; width: 28px; height: 28px; border-radius: 4px; border: 1px dashed var(--color-bg-step4); background: var(--color-bg-panel); color: var(--color-text-muted); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.6;"
+	title="Toggle ruler"
+>📏</button>
+
+<!-- Draggable ruler overlay -->
+{#if showRuler}
+<div
+	onmousedown={onRulerMouseDown}
+	style="position: fixed; left: {rulerX}px; top: {rulerY}px; z-index: 9999; cursor: {dragging ? 'grabbing' : 'grab'}; user-select: none;"
+>
+	<img src="/ruler.png" alt="ruler" style="height: 80px; pointer-events: none;" draggable="false" />
+</div>
+{/if}
