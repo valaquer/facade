@@ -81,6 +81,15 @@ export function initDb(): void {
 			tokenQueue TEXT NOT NULL DEFAULT '[]'
 		)
 	`);
+	db.exec(`
+		CREATE TABLE IF NOT EXISTS bookmarks (
+			id TEXT PRIMARY KEY,
+			messageId TEXT NOT NULL,
+			roomId TEXT NOT NULL,
+			name TEXT NOT NULL,
+			createdAt TEXT NOT NULL
+		)
+	`);
 }
 
 export function saveMessage(msg: StoredMessage): void {
@@ -287,4 +296,39 @@ export function markRoomPast(id: string, pastId: string, startedAt: string): voi
 export function deleteRoom(id: string): void {
 	initDb();
 	db.prepare("DELETE FROM rooms WHERE id = ?").run(id);
+}
+
+export function saveBookmark(bm: {
+	id: string;
+	messageId: string;
+	roomId: string;
+	name: string;
+	createdAt: string;
+}): void {
+	initDb();
+	db.prepare(
+		"INSERT OR IGNORE INTO bookmarks (id, messageId, roomId, name, createdAt) VALUES (?, ?, ?, ?, ?)"
+	).run(bm.id, bm.messageId, bm.roomId, bm.name, bm.createdAt);
+}
+
+export function getBookmarks(): {
+	id: string;
+	messageId: string;
+	roomId: string;
+	name: string;
+	createdAt: string;
+}[] {
+	initDb();
+	return db.prepare("SELECT * FROM bookmarks ORDER BY createdAt DESC").all() as {
+		id: string;
+		messageId: string;
+		roomId: string;
+		name: string;
+		createdAt: string;
+	}[];
+}
+
+export function updateBookmarkName(id: string, name: string): void {
+	initDb();
+	db.prepare("UPDATE bookmarks SET name = ? WHERE id = ?").run(name, id);
 }

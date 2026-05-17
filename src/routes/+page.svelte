@@ -87,6 +87,7 @@
 
 	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; participants?: string[] };
 	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean };
+	type Bookmark = { id: string; messageId: string; roomId: string; name: string; createdAt: string };
 
 	function formatPastRoom(name: string): { label: string; date: string } {
 		const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -195,6 +196,7 @@
 
 	onMount(() => {
 		loadSidebar();
+		loadBookmarks();
 		eventSource = new EventSource("/api/events");
 		eventSource.onmessage = (event) => {
 			try {
@@ -286,6 +288,83 @@
 		}
 	});
 
+	function autofocusInput(node: HTMLInputElement) {
+		setTimeout(() => node.focus(), 0);
+	}
+
+	// Bookmarks
+	let bookmarks = $state<Bookmark[]>([]);
+	let editingBookmarkId = $state<string | null>(null);
+	let editingBookmarkName = $state("");
+	let pendingScrollMessageId = $state<string | null>(null);
+
+	async function loadBookmarks() {
+		try {
+			const res = await fetch("/api/bookmarks");
+			bookmarks = await res.json();
+		} catch { bookmarks = []; }
+	}
+
+	async function createBookmark(msg: ChatMsg) {
+		const fallbackTime = new Date(msg.createdAt);
+		const hh = String(fallbackTime.getHours()).padStart(2, "0");
+		const mm = String(fallbackTime.getMinutes()).padStart(2, "0");
+		const fallbackName = `${msg.sender} \u00b7 ${hh}:${mm}`;
+		const res = await fetch("/api/bookmarks", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ messageId: msg.id, roomId: selectedConvId, name: fallbackName }),
+		});
+		if (res.ok) {
+			const bm: Bookmark = await res.json();
+			bookmarks = [bm, ...bookmarks];
+			editingBookmarkId = bm.id;
+			editingBookmarkName = "";
+		}
+	}
+
+	function commitBookmarkName(bm: Bookmark) {
+		const trimmed = editingBookmarkName.trim();
+		if (trimmed) {
+			bm.name = trimmed;
+			fetch("/api/bookmarks", {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ id: bm.id, name: bm.name }),
+			}).catch(() => {});
+		}
+		editingBookmarkId = null;
+		editingBookmarkName = "";
+		bookmarks = [...bookmarks];
+	}
+
+	function navigateToBookmark(bm: Bookmark) {
+		const idx = sidebarItems.findIndex((item) => item.id === bm.roomId);
+		if (idx >= 0) {
+			selectedIndex = idx;
+			pendingScrollMessageId = bm.messageId;
+		}
+	}
+
+	function scrollToMessage(messageId: string) {
+		if (!messagesContainer) return;
+		const el = messagesContainer.querySelector(`[data-msg-id="${messageId}"]`);
+		if (el) {
+			el.scrollIntoView({ behavior: "smooth", block: "center" });
+			el.classList.add("bookmark-highlight");
+			setTimeout(() => el.classList.remove("bookmark-highlight"), 2000);
+			pendingScrollMessageId = null;
+		}
+	}
+
+	$effect(() => {
+		const msgs = currentMessages;
+		const target = pendingScrollMessageId;
+		if (target && msgs.length > 0) {
+			setTimeout(() => scrollToMessage(target), 100);
+		}
+	});
+
 	// Ruler overlay
 	let showRuler = $state(false);
 	let rulerX = $state(100);
@@ -351,6 +430,31 @@
 			{/each}
 			</div>
 
+			{#if bookmarks.length > 0}
+				<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
+					<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Bookmarks</p>
+				</div>
+				<div style="padding: 0.5rem 0 60px 0;">
+				{#each bookmarks as bm}
+					<div style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: var(--color-text-muted);">
+						{#if editingBookmarkId === bm.id}
+							<input
+								type="text"
+								bind:value={editingBookmarkName}
+								placeholder="Type bookmark name"
+								onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); commitBookmarkName(bm); } }}
+								onblur={() => commitBookmarkName(bm)}
+								style="background: transparent; border: none; outline: none; color: var(--color-text); font-family: var(--font-sans); font-size: inherit; width: 100%; padding: 0;"
+								use:autofocusInput
+							/>
+						{:else}
+							<div onclick={() => navigateToBookmark(bm)}>{bm.name}</div>
+						{/if}
+					</div>
+				{/each}
+				</div>
+			{/if}
+
 			{#if sidebarItems.filter((x) => x.kind === "past").length > 0}
 				<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
 					<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
@@ -383,7 +487,7 @@
 					<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
 						<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
 					</div>
-					<div style="padding-top: 2rem;">
+					<div class="msg-row" data-msg-id={msg.id} style="padding-top: 2rem; position: relative;">
 						<div style="border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : '2px solid transparent'}; padding-left: 1.5rem;">
 							{#if msg.toolCall}
 								{@html renderToolCard(msg.content)}
@@ -393,6 +497,11 @@
 								</div>
 							{/if}
 						</div>
+						<button
+							class="bookmark-btn"
+							onclick={() => createBookmark(msg)}
+							title="Bookmark this message"
+						>🔖</button>
 					</div>
 				{/each}
 			</div>
@@ -447,3 +556,29 @@
 	<img src="/ruler.png" alt="ruler" style="height: 80px; pointer-events: none;" draggable="false" />
 </div>
 {/if}
+
+<style>
+	.msg-row:hover .bookmark-btn {
+		opacity: 1 !important;
+	}
+	.bookmark-btn {
+		position: absolute;
+		top: 2rem;
+		right: 0;
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 12px;
+		color: var(--color-text-muted);
+		opacity: 0;
+		transition: opacity 0.15s;
+		padding: 2px 4px;
+	}
+	.bookmark-highlight {
+		animation: bm-pulse 2s ease-out;
+	}
+	@keyframes bm-pulse {
+		0% { background-color: rgba(90, 62, 46, 0.3); }
+		100% { background-color: transparent; }
+	}
+</style>
