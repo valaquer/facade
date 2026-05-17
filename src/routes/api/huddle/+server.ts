@@ -88,10 +88,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		try {
 			emitEvent({ type: "huddle_update" });
 
-			for (const name of allMembers) {
+			const wakePromises = allMembers.map(async (name) => {
 				const wakeResult = await ensureTabOpen(name);
-				results.push(`${name}: ${wakeResult}`);
-			}
+				return `${name}: ${wakeResult}`;
+			});
+			results.push(...(await Promise.all(wakePromises)));
 
 			const invitation = `Huddle started by ${host}. Participants: ${allMembers.join(", ")}. Room: ${rid}`;
 			const msg = {
@@ -168,9 +169,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		emitEvent({ type: "huddle_update" });
 
 		if (newlyAdded.length > 0) {
-			for (const name of newlyAdded) {
-				await ensureTabOpen(name);
-			}
+			await Promise.all(newlyAdded.map((name) => ensureTabOpen(name)));
 
 			const notification = `${newlyAdded.join(", ")} added to huddle ${roomId}.`;
 			const msg = {
@@ -285,7 +284,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (!sender || !roomId) {
 			return new Response(JSON.stringify({ error: "Missing sender or roomId" }), { status: 400 });
 		}
-		const result = requestToken(sender, roomId);
+		const result = requestToken(sender.toLowerCase(), roomId);
 		if (result.startsWith("granted")) {
 			startTokenTimer(roomId);
 		}
@@ -299,7 +298,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			return new Response(JSON.stringify({ error: "Missing sender or roomId" }), { status: 400 });
 		}
 		clearTokenTimer(roomId);
-		const result = releaseToken(roomId, sender);
+		const result = releaseToken(roomId, sender.toLowerCase());
 		if (result.startsWith("released:")) {
 			startTokenTimer(roomId);
 		}

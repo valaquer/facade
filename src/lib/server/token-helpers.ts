@@ -13,10 +13,14 @@ export function advanceTokenAndNotify(roomId: string, releasedBy: string): strin
 
 	// Token notifications go to Kitty only — not saved or displayed in Facade (REQ-77)
 	for (const m of members) {
+		const body =
+			m === next
+				? "You have the token. Read posted messages before posting. Agree or disagree but don't repeat what is already said."
+				: `Token passed to ${next}.`;
 		sendToKitty(m, {
 			sender: "system",
 			room: roomId,
-			body: `Token passed to ${next}. Read posted messages before posting. Agree or disagree but don't repeat what is already said.`,
+			body,
 			timestamp: now,
 		}).catch(() => {});
 	}
@@ -51,6 +55,8 @@ export function startTokenTimer(roomId: string): void {
 		const next = advanceTokenAndNotify(roomId, holder);
 		if (next) {
 			startTokenTimer(roomId);
+		} else {
+			clearTokensAndNotify(roomId);
 		}
 	}, 30_000);
 	tokenTimers.set(roomId, timer);

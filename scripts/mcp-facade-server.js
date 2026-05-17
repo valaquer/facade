@@ -55,12 +55,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 		if (!res.ok) {
 			const text = await res.text();
-			let msg = `Error ${res.status}`;
+			let msg = "Something went wrong.";
 			try {
 				const parsed = JSON.parse(text);
-				if (parsed.error) msg += `: ${parsed.error}`;
+				if (parsed.message) msg = parsed.message;
+				else if (parsed.error) msg = parsed.error;
 			} catch {
-				if (text) msg += `: ${text}`;
+				if (text) msg = text;
 			}
 			return { content: [{ type: "text", text: msg }] };
 		}
