@@ -1,5 +1,5 @@
 import { clearTokenTimer } from "./token-helpers";
-import { setRoomType, getHuddleMembers, getRoom, saveMessage, getRoomsByType } from "./facade-db";
+import { setRoomType, getHuddleMembers, getRoom, saveMessage } from "./facade-db";
 import { emitEvent } from "./events";
 import { sendToKitty } from "./kitten";
 import { v4 } from "uuid";
@@ -40,14 +40,5 @@ export function endHuddle(roomId: string): void {
 			body: notification,
 			timestamp: msg.createdAt,
 		}).catch(() => {});
-	}
-}
-
-export function endOrphanHuddles(aliveTeammates: string[]): void {
-	const activeHuddles = getRoomsByType("huddle");
-	for (const room of activeHuddles) {
-		if (!aliveTeammates.includes(room.name)) {
-			endHuddle(room.id);
-		}
 	}
 }

@@ -2,7 +2,6 @@ import { getActiveTeammatesFromKitty } from "./kitten";
 import { getActiveTeammates, activateTeammate, deactivateTeammate } from "./active-teammates";
 import { emitEvent } from "./events";
 import { saveRoom, resolveActiveRoom, setRoomType, formatTimestamp } from "./facade-db";
-import { endOrphanHuddles } from "./huddle-helpers";
 
 const POLL_INTERVAL = 3000;
 
@@ -56,8 +55,6 @@ async function syncOnce(): Promise<void> {
 			changed = true;
 		}
 	}
-
-	endOrphanHuddles(kittyTeammates);
 
 	if (changed) {
 		emitEvent({ type: "huddle_update" });
