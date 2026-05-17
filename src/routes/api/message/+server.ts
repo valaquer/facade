@@ -125,6 +125,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			saveMessage(sysMsg);
 			emitEvent({
 				type: "message",
+				id,
 				conversationId: resolvedRoom,
 				sender: "system",
 				content: systemContent,
@@ -159,6 +160,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	emitEvent({
 		type: "message",
+		id,
 		conversationId: resolvedRoom,
 		sender,
 		content: body,
