@@ -112,9 +112,11 @@ export function sendToKitty(
 	return work.then(() => result);
 }
 
+let lastKnownTeammates: string[] = [];
+
 export async function getActiveTeammatesFromKitty(): Promise<string[]> {
 	const socket = await discoverSocket();
-	if (!socket) return [];
+	if (!socket) return lastKnownTeammates;
 
 	try {
 		const { stdout } = await execFileAsync(KITTEN, ["@", "--to", socket, "ls"], { timeout: 30000 });
@@ -132,8 +134,9 @@ export async function getActiveTeammatesFromKitty(): Promise<string[]> {
 			}
 		}
 
+		lastKnownTeammates = teammates;
 		return teammates;
 	} catch {
-		return [];
+		return lastKnownTeammates;
 	}
 }

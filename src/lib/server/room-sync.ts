@@ -46,6 +46,12 @@ async function syncOnce(): Promise<void> {
 		}
 	}
 
+	// If kitty returned empty and we had active teammates, skip deactivation
+	// — likely a transient poll error, not all 33 tabs closing simultaneously
+	if (kittyTeammates.length === 0 && prevActive.length > 0) {
+		return;
+	}
+
 	for (const name of prevActive) {
 		if (!kittyTeammates.includes(name)) {
 			const roomId = resolveActiveRoom(`direct-${name}`);
