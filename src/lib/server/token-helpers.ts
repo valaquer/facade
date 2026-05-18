@@ -15,7 +15,7 @@ export function advanceTokenAndNotify(roomId: string, releasedBy: string): strin
 	for (const m of members) {
 		const body =
 			m === next
-				? "You have the token. Read posted messages before posting. Agree or disagree but don't repeat what is already said."
+				? "You have the token. Read posted messages before posting. Check if what you wanted to post still makes sense given the other messages already posted. Agree or disagree but don't repeat what is already said."
 				: `Token passed to ${next}.`;
 		sendToKitty(m, {
 			sender: "system",

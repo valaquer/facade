@@ -9,6 +9,7 @@ import {
 	requestToken,
 	releaseToken,
 	initHuddleToken,
+	resolveActiveRoom,
 } from "$lib/server/facade-db";
 import { emitEvent } from "$lib/server/events";
 import { sendToKitty } from "$lib/server/kitten";
@@ -73,6 +74,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		const rid = `huddle-${host}-${ts}`;
 		const allMembers = [host, ...participants.filter((p: string) => p !== host)];
 
+		const existingRoomId = resolveActiveRoom(`huddle-${host}`);
+		if (existingRoomId) {
+			return new Response(JSON.stringify({ roomId: existingRoomId, existing: true }), {
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+
 		saveRoom({
 			id: rid,
 			type: "huddle",
@@ -133,12 +141,16 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (action === "end") {
 		if (!roomId) return new Response(JSON.stringify({ error: "Missing roomId" }), { status: 400 });
 
-		const room = getRoom(roomId);
+		let room = getRoom(roomId);
+		if (!room) {
+			const resolved = resolveActiveRoom(roomId);
+			if (resolved) room = getRoom(resolved);
+		}
 		if (!room) return new Response(JSON.stringify({ error: "Room not found" }), { status: 404 });
 
-		endHuddle(roomId);
+		endHuddle(room.id);
 
-		return new Response(JSON.stringify({ status: "ended", roomId }), {
+		return new Response(JSON.stringify({ status: "ended", roomId: room.id }), {
 			headers: { "Content-Type": "application/json" },
 		});
 	}
