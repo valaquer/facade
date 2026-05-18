@@ -175,12 +175,6 @@
 		}, 300);
 	}
 
-	function scrollToBottom() {
-		if (messagesContainer) {
-			messagesContainer.scrollTop = messagesContainer.scrollHeight;
-		}
-	}
-
 	async function sendMessage() {
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
@@ -193,9 +187,7 @@
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ sender: "boss", body: content, room: selectedConvId }),
 			});
-			if (res.ok) {
-				setTimeout(scrollToBottom, 50);
-			}
+
 		} catch {
 			// ignore send errors
 		}
@@ -222,7 +214,6 @@
 					conversations[convId] = [...(conversations[convId] ?? []), msg];
 					conversations = conversations;
 					if (convId === selectedConvId) {
-						setTimeout(scrollToBottom, 50);
 					}
 				}
 			} catch {
@@ -295,6 +286,13 @@
 	let currentMessages = $derived(selectedConvId ? (conversations[selectedConvId] ?? []).filter((m) => !isTokenNoise(m)) : []);
 
 	$effect(() => {
+		currentMessages;
+		if (messagesContainer) {
+			messagesContainer.scrollTop = messagesContainer.scrollHeight;
+		}
+	});
+
+	$effect(() => {
 		const convId = selectedConvId;
 		if (convId && !conversations[convId]) {
 			fetch(`/api/messages?room=${convId}`)
@@ -302,11 +300,8 @@
 				.then((msgs: any[]) => {
 					conversations[convId] = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
 					conversations = conversations;
-					setTimeout(scrollToBottom, 50);
 				})
 				.catch(() => {});
-		} else if (convId) {
-			setTimeout(scrollToBottom, 50);
 		}
 	});
 
@@ -522,7 +517,7 @@
 	<div class="flex-1 flex flex-col" style="height: 100vh; position: relative;">
 	{#if selectedConvId}
 		<!-- Conversation area (scrollable) -->
-		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 130px;" bind:this={messagesContainer}>
+		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 130px; display: flex; flex-direction: column; justify-content: flex-end;" bind:this={messagesContainer}>
 			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
 				{#each currentMessages as msg}
 					<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
