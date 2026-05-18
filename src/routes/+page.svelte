@@ -259,6 +259,12 @@
 		}
 	});
 
+	$effect(() => {
+		const idx = selectedIndex;
+		const el = document.querySelector(`[data-nav-idx="${idx}"]`);
+		if (el) el.scrollIntoView({ block: "nearest" });
+	});
+
 	let prevRoom = "";
 	$effect(() => {
 		const room = selectedConvId;
@@ -267,6 +273,7 @@
 			savePrefs();
 		}
 	});
+
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.ctrlKey && e.key === 'ArrowDown') {
@@ -444,6 +451,7 @@
 				{#each sidebarItems.filter((x) => x.kind === "teammate") as item}
 					{@const fmt = formatPastRoom(item.id)}
 					<div
+						data-nav-idx={sidebarItems.indexOf(item)}
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
 						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
 					>
@@ -459,6 +467,7 @@
 			{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
 				{@const fmt = formatPastRoom(item.id)}
 				<div
+					data-nav-idx={sidebarItems.indexOf(item)}
 					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
 					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
 				>
@@ -478,6 +487,7 @@
 				{#each bookmarks as bm, bmIdx}
 					{@const navIdx = preBookmarkCount + bmIdx}
 					<div
+						data-nav-idx={navIdx}
 						onclick={() => { selectedIndex = navIdx; pendingScrollMessageId = bm.messageId; }}
 						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === navIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === navIdx ? 'var(--color-bg-element)' : 'transparent'};"
 					>
@@ -508,6 +518,7 @@
 					{@const fmt = formatPastRoom(item.name)}
 					{@const pastNavIdx = sidebarItems.indexOf(item) + bookmarks.length}
 					<div
+						data-nav-idx={pastNavIdx}
 						onclick={() => selectedIndex = pastNavIdx}
 					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === pastNavIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === pastNavIdx ? 'var(--color-bg-element)' : 'transparent'};"
 					>
