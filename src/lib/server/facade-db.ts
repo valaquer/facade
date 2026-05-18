@@ -332,3 +332,8 @@ export function updateBookmarkName(id: string, name: string): void {
 	initDb();
 	db.prepare("UPDATE bookmarks SET name = ? WHERE id = ?").run(name, id);
 }
+
+export function deleteBookmark(id: string): void {
+	initDb();
+	db.prepare("DELETE FROM bookmarks WHERE id = ?").run(id);
+}

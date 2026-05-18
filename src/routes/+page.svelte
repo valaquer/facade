@@ -126,7 +126,26 @@
 		lastScrollTop = scrollTop;
 	}
 
-	let selectedConvId = $derived(sidebarItems[selectedIndex]?.id ?? "");
+	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
+	// sidebarItems order is teammates → huddles → past rooms
+	// preBookmarkCount = index where past rooms start in sidebarItems
+	let preBookmarkCount = $derived.by(() => {
+		const idx = sidebarItems.findIndex(x => x.kind === "past");
+		return idx === -1 ? sidebarItems.length : idx;
+	});
+	let totalNavItems = $derived(sidebarItems.length + bookmarks.length);
+	// Nav index → data: [0..pbc-1] = sidebarItems[0..pbc-1], [pbc..pbc+B-1] = bookmarks, [pbc+B..end] = sidebarItems[pbc..end]
+	let selectedConvId = $derived.by(() => {
+		const pbc = preBookmarkCount;
+		if (selectedIndex < pbc) {
+			return sidebarItems[selectedIndex]?.id ?? "";
+		}
+		if (selectedIndex < pbc + bookmarks.length) {
+			return bookmarks[selectedIndex - pbc]?.roomId ?? "";
+		}
+		const sidebarIdx = selectedIndex - bookmarks.length;
+		return sidebarItems[sidebarIdx]?.id ?? "";
+	});
 
 	let prefsTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -140,13 +159,16 @@
 
 			const items = [...teammates, ...currentHuddles, ...pastItems];
 			sidebarItems = items;
-			if (selectedIndex >= items.length) selectedIndex = 0;
+			if (selectedIndex >= items.length + bookmarks.length) selectedIndex = 0;
 
 			const prefsRes = await fetch("/api/preferences");
 			const prefs = await prefsRes.json();
 			if (prefs.selectedRoom) {
 				const idx = items.findIndex((i) => i.id === prefs.selectedRoom);
-				if (idx >= 0) selectedIndex = idx;
+				if (idx >= 0) {
+					const pastStart = items.findIndex(x => x.kind === "past");
+					selectedIndex = (pastStart >= 0 && idx >= pastStart) ? idx + bookmarks.length : idx;
+				}
 			}
 		} catch {
 			sidebarItems = [];
@@ -249,12 +271,20 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.ctrlKey && e.key === 'ArrowDown') {
 			e.preventDefault();
-			if (sidebarItems.length === 0) return;
-			selectedIndex = (selectedIndex + 1) % sidebarItems.length;
+			if (totalNavItems === 0) return;
+			selectedIndex = (selectedIndex + 1) % totalNavItems;
+			const pbc = preBookmarkCount;
+			if (selectedIndex >= pbc && selectedIndex < pbc + bookmarks.length) {
+				pendingScrollMessageId = bookmarks[selectedIndex - pbc]?.messageId ?? null;
+			}
 		} else if (e.ctrlKey && e.key === 'ArrowUp') {
 			e.preventDefault();
-			if (sidebarItems.length === 0) return;
-			selectedIndex = (selectedIndex - 1 + sidebarItems.length) % sidebarItems.length;
+			if (totalNavItems === 0) return;
+			selectedIndex = (selectedIndex - 1 + totalNavItems) % totalNavItems;
+			const pbc = preBookmarkCount;
+			if (selectedIndex >= pbc && selectedIndex < pbc + bookmarks.length) {
+				pendingScrollMessageId = bookmarks[selectedIndex - pbc]?.messageId ?? null;
+			}
 		} else if (e.key === 'Enter' && !e.shiftKey && document.activeElement !== inputRef) {
 			e.preventDefault();
 			inputRef?.focus();
@@ -305,21 +335,31 @@
 		} catch { bookmarks = []; }
 	}
 
-	async function createBookmark(msg: ChatMsg) {
-		const fallbackTime = new Date(msg.createdAt);
-		const hh = String(fallbackTime.getHours()).padStart(2, "0");
-		const mm = String(fallbackTime.getMinutes()).padStart(2, "0");
-		const fallbackName = `${msg.sender} \u00b7 ${hh}:${mm}`;
-		const res = await fetch("/api/bookmarks", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ messageId: msg.id, roomId: selectedConvId, name: fallbackName }),
-		});
-		if (res.ok) {
-			const bm: Bookmark = await res.json();
-			bookmarks = [bm, ...bookmarks];
-			editingBookmarkId = bm.id;
-			editingBookmarkName = "";
+	async function toggleBookmark(msg: ChatMsg) {
+		const existing = bookmarks.find(bm => bm.messageId === msg.id);
+		if (existing) {
+			await fetch("/api/bookmarks", {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ id: existing.id }),
+			});
+			bookmarks = bookmarks.filter(bm => bm.id !== existing.id);
+		} else {
+			const fallbackTime = new Date(msg.createdAt);
+			const hh = String(fallbackTime.getHours()).padStart(2, "0");
+			const mm = String(fallbackTime.getMinutes()).padStart(2, "0");
+			const fallbackName = `${msg.sender} \u00b7 ${hh}:${mm}`;
+			const res = await fetch("/api/bookmarks", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ messageId: msg.id, roomId: selectedConvId, name: fallbackName }),
+			});
+			if (res.ok) {
+				const bm: Bookmark = await res.json();
+				bookmarks = [bm, ...bookmarks];
+				editingBookmarkId = bm.id;
+				editingBookmarkName = "";
+			}
 		}
 	}
 
@@ -435,8 +475,12 @@
 					<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Bookmarks</p>
 				</div>
 				<div style="padding: 0.5rem 0 60px 0;">
-				{#each bookmarks as bm}
-					<div style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: var(--color-text-muted);">
+				{#each bookmarks as bm, bmIdx}
+					{@const navIdx = preBookmarkCount + bmIdx}
+					<div
+						onclick={() => { selectedIndex = navIdx; pendingScrollMessageId = bm.messageId; }}
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === navIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === navIdx ? 'var(--color-bg-element)' : 'transparent'};"
+					>
 						{#if editingBookmarkId === bm.id}
 							<input
 								type="text"
@@ -448,7 +492,7 @@
 								use:autofocusInput
 							/>
 						{:else}
-							<div onclick={() => navigateToBookmark(bm)}>{bm.name}</div>
+							<div>{bm.name}</div>
 						{/if}
 					</div>
 				{/each}
@@ -462,9 +506,10 @@
 				<div style="padding: 0.5rem 0 60px 0;">
 				{#each sidebarItems.filter((x) => x.kind === "past") as item}
 					{@const fmt = formatPastRoom(item.name)}
+					{@const pastNavIdx = sidebarItems.indexOf(item) + bookmarks.length}
 					<div
-						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
+						onclick={() => selectedIndex = pastNavIdx}
+					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === pastNavIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === pastNavIdx ? 'var(--color-bg-element)' : 'transparent'};"
 					>
 						<div>{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 					</div>
@@ -499,7 +544,7 @@
 						</div>
 						<button
 							class="bookmark-btn"
-							onclick={() => createBookmark(msg)}
+							onclick={() => toggleBookmark(msg)}
 							title="Bookmark this message"
 						>🔖</button>
 					</div>

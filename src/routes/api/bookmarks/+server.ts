@@ -1,5 +1,10 @@
 import type { RequestHandler } from "./$types";
-import { saveBookmark, getBookmarks, updateBookmarkName } from "$lib/server/facade-db";
+import {
+	saveBookmark,
+	getBookmarks,
+	updateBookmarkName,
+	deleteBookmark,
+} from "$lib/server/facade-db";
 import { v4 } from "uuid";
 
 export const GET: RequestHandler = async () => {
@@ -21,6 +26,20 @@ export const POST: RequestHandler = async ({ request }) => {
 	const createdAt = new Date().toISOString();
 	saveBookmark({ id, messageId, roomId, name, createdAt });
 	return new Response(JSON.stringify({ id, messageId, roomId, name, createdAt }), {
+		headers: { "Content-Type": "application/json" },
+	});
+};
+
+export const DELETE: RequestHandler = async ({ request }) => {
+	const { id } = await request.json();
+	if (!id) {
+		return new Response(JSON.stringify({ error: "Missing id" }), {
+			status: 400,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+	deleteBookmark(id);
+	return new Response(JSON.stringify({ ok: true }), {
 		headers: { "Content-Type": "application/json" },
 	});
 };
