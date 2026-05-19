@@ -392,6 +392,16 @@
 		}
 	});
 
+	async function dismissTeammate(name: string) {
+		try {
+			await fetch("/api/rooms/deactivate", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ name }),
+			});
+		} catch {}
+	}
+
 	// Ruler overlay
 	let showRuler = $state(false);
 	let rulerX = $state(100);
@@ -431,11 +441,17 @@
 				{#each sidebarItems.filter((x) => x.kind === "teammate") as item}
 					{@const fmt = formatPastRoom(item.id)}
 					<div
+						class="teammate-row"
 						data-nav-idx={sidebarItems.indexOf(item)}
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
 					>
 						{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}
+						<button
+							class="dismiss-btn"
+							onclick={(e) => { e.stopPropagation(); dismissTeammate(fmt.label); }}
+							title="Move to Past Rooms"
+						>&times;</button>
 					</div>
 				{/each}
 			</div>
@@ -594,6 +610,27 @@
 {/if}
 
 <style>
+	.teammate-row:hover .dismiss-btn {
+		opacity: 1 !important;
+	}
+	.dismiss-btn {
+		position: absolute;
+		right: 0.5rem;
+		top: 50%;
+		transform: translateY(-50%);
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 14px;
+		color: var(--color-text-muted);
+		opacity: 0;
+		transition: opacity 0.15s;
+		padding: 2px 4px;
+		line-height: 1;
+	}
+	.dismiss-btn:hover {
+		color: var(--color-text);
+	}
 	.msg-row:hover .bookmark-btn {
 		opacity: 1 !important;
 	}

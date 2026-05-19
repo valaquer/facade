@@ -111,32 +111,3 @@ export function sendToKitty(
 	});
 	return work.then(() => result);
 }
-
-let lastKnownTeammates: string[] = [];
-
-export async function getActiveTeammatesFromKitty(): Promise<string[]> {
-	const socket = await discoverSocket();
-	if (!socket) return lastKnownTeammates;
-
-	try {
-		const { stdout } = await execFileAsync(KITTEN, ["@", "--to", socket, "ls"], { timeout: 30000 });
-		const data = JSON.parse(stdout);
-		const teammates: string[] = [];
-
-		for (const osWin of data) {
-			for (const tab of osWin.tabs ?? []) {
-				for (const window of tab.windows ?? []) {
-					const val = window.user_vars?.teammate ?? "";
-					if (val && !teammates.includes(val)) {
-						teammates.push(val);
-					}
-				}
-			}
-		}
-
-		lastKnownTeammates = teammates;
-		return teammates;
-	} catch {
-		return lastKnownTeammates;
-	}
-}
