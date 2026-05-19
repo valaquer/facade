@@ -267,6 +267,27 @@ export function getOriginalRoomId(pastRoomId: string): string | null {
 	return row?.originalRoomId ?? null;
 }
 
+export function getActiveRoomsForTeammate(teammate: string): string[] {
+	initDb();
+	const rooms: string[] = [];
+	// Direct room
+	const directRoom = resolveActiveRoom(`direct-${teammate}`);
+	if (directRoom) rooms.push(directRoom);
+	// Huddle rooms where teammate is a participant
+	const huddles = db
+		.prepare("SELECT id, participants FROM rooms WHERE type = 'huddle'")
+		.all() as RoomRow[];
+	for (const h of huddles) {
+		try {
+			const members = JSON.parse(h.participants) as string[];
+			if (members.includes(teammate)) rooms.push(h.id);
+		} catch {
+			/* skip */
+		}
+	}
+	return rooms;
+}
+
 export function getRoomsByType(type: string): RoomRow[] {
 	initDb();
 	const stmt = db.prepare("SELECT * FROM rooms WHERE type = ? ORDER BY lastActivity DESC");
