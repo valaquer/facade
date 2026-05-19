@@ -176,14 +176,15 @@ Design constants:
 - Markdown gradients: blue-to-purple (`#5c9cf5` → `#9d7cd8`) on headings/bold/blockquotes
 - Keyboard shortcuts: Ctrl+Up/Down (sidebar nav), Enter (focus input), Escape (blur input)
 
-### Server Layer (Kitty lifecycle mirror)
+### Server Layer (Kitty lifecycle mirror + event-driven rooms)
 
 | File | Purpose |
 |---|---|
 | `src/lib/server/kitten.ts` | Discovers Kitty socket (`KITTY_LISTEN_ON` or `/tmp/honeybloom-kitty-*.sock`), parses `kitten @ ls` JSON, extracts teammate names from `window.user_vars.teammate` |
 | `src/lib/server/active-teammates.ts` | JSON file state at `/tmp/facade-active-teammates.json`. Export: `activateTeammate()`, `deactivateTeammate()`, `getActiveTeammates()` |
 | `src/lib/server/events.ts` | Wraps Node.js EventEmitter. Export: `emitEvent()`, `onEvent()`. Used for SSE push. |
-| `src/lib/server/room-sync.ts` | Polls `getActiveTeammatesFromKitty()` every 3s. Compares with active state. Calls `emitEvent()` on changes. Bootstrapped in `hooks.server.ts:init()`. |
+| `src/routes/api/rooms/activate/+server.ts` | POST endpoint called by `kitty-open-teammate.sh` on tab open. Calls `activateTeammate()`, saves room to SQLite, emits SSE `room_update`. |
+| `src/routes/api/rooms/deactivate/+server.ts` | POST endpoint called by `/end-session` on tab close. Calls `deactivateTeammate()`, handles huddle cleanup (ends if host, removes + advances token if participant), emits SSE `room_update`. |
 
 ### Floating Input Bar (REQ-68)
 
@@ -216,16 +217,16 @@ Same flow applies for Boss → teammate (sender="boss" is no longer hardcoded �
 ### Data Flow
 
 ```
-Kitty tab opens (kitten send-text --match "var:teammate=X")
-  → room-sync.ts polls kitten @ ls every 3s
-  → Detects new teammate, calls activateTeammate()
-  → emitEvent({ type: "huddle_update" })
+Kitty tab opens (kitty-open-teammate.sh)
+  → POST /api/rooms/activate { sender: "natalie" }
+  → activateTeammate("natalie"), saveRoom(...) in SQLite
+  → emitEvent({ type: "room_update" })
   → /api/events SSE stream pushes to browser
   → +page.svelte EventSource receives event, calls loadSidebar()
   → Sidebar re-renders with new teammate entry
 ```
 
-Same flow in reverse for tab close (deactivateTeammate → SSE → sidebar update).
+Same flow in reverse for tab close: `/end-session` → POST `/api/rooms/deactivate` → deactivate + huddle cleanup → SSE → sidebar update. Hover × on sidebar entries provides manual dismiss for ungraceful exits (REQ-126).
 
 ### Huddle Rooms
 
@@ -299,6 +300,7 @@ Activation: Boss types `/start-livemirror {teammate}` in Facade input bar. Deact
 | REQ-068 | Floating input bar — position absolute over chat area. padding-bottom clearance. Replaces REQ-065. | Shipped |
 | REQ-069 | Huddle room resolution — short-form IDs resolve to active session-scoped room via originalRoomId. Guard prevents phantom direct rooms. Ghost rooms cleaned. | Shipped |
 | REQ-070 | Auto-request token — no 403. Token free → auto-grant. Someone else holds → auto-queue + hold message in pending_messages. Delivered on token advance, Boss-speaks, or huddle end. | Shipped |
+| REQ-126 | Event-driven room lifecycle — replaces 3s room-sync polling with POST /api/rooms/activate (tab open) and POST /api/rooms/deactivate (tab close / ungraceful exit). Deactivate handles huddle cleanup. room-sync.ts deleted. Hover × in sidebar for manual dismissal. | Shipped |
 
 ## Conventions
 
