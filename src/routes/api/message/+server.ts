@@ -86,12 +86,15 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	// --- Command handling ---
 	if (body.startsWith("/")) {
-		const parts = body.trim().split(/\s+/);
+		const parts = body.trim().split(/[\s,]+/);
 		const command = parts[0].toLowerCase();
 		let systemContent = "";
 
 		if (command === "/start-livemirror") {
-			const teammates = parts.slice(1).filter((t: string) => t.length > 0);
+			const teammates = parts
+				.slice(1)
+				.filter((t: string) => t.length > 0)
+				.map((t: string) => t.toLowerCase());
 			for (const t of teammates) {
 				fs.writeFileSync(`/tmp/facade-relay-active-${t}`, resolvedRoom);
 			}
