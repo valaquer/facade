@@ -91,18 +91,17 @@ export const POST: RequestHandler = async ({ request }) => {
 		let systemContent = "";
 
 		if (command === "/start-livemirror") {
-			const teammates = parts
-				.slice(1)
-				.filter((t: string) => t.length > 0)
-				.map((t: string) => t.toLowerCase());
-			for (const t of teammates) {
-				fs.writeFileSync(`/tmp/facade-relay-active-${t}`, resolvedRoom);
-			}
-			systemContent =
-				teammates.length > 0
-					? `Live mirror started for: ${teammates.join(", ")}`
-					: "Live mirror: no teammates specified";
+			const globalFlag = "/Users/d.patnaik/honeybloom/library/facade/livemirror-global";
+			fs.writeFileSync(globalFlag, new Date().toISOString());
+			systemContent = "Live mirror started for all teammates";
 		} else if (command === "/end-livemirror") {
+			const globalFlag = "/Users/d.patnaik/honeybloom/library/facade/livemirror-global";
+			try {
+				fs.unlinkSync(globalFlag);
+			} catch {
+				/* already off */
+			}
+			// Clean up any leftover per-teammate flags
 			try {
 				const dir = fs.readdirSync("/tmp");
 				for (const f of dir) {

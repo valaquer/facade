@@ -1,6 +1,6 @@
 import type { RequestHandler } from "./$types";
 import { emitEvent } from "$lib/server/events";
-import { saveMessage, getHuddleMembers } from "$lib/server/facade-db";
+import { saveMessage, getHuddleMembers, resolveActiveRoom } from "$lib/server/facade-db";
 import { sendToKitty } from "$lib/server/kitten";
 import { v4 } from "uuid";
 
@@ -14,13 +14,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
+	const resolvedRoom = resolveActiveRoom(room) ?? room;
 	const id = v4();
 	const createdAt = new Date().toISOString();
 	const content = JSON.stringify({ toolName, toolInput, toolOutput, status });
 
 	saveMessage({
 		id,
-		conversationId: room,
+		conversationId: resolvedRoom,
 		sender,
 		content,
 		createdAt,
@@ -29,7 +30,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	emitEvent({
 		type: "message",
-		conversationId: room,
+		conversationId: resolvedRoom,
 		sender,
 		content,
 		timestamp: createdAt,
@@ -49,7 +50,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	return new Response(
-		JSON.stringify({ id, conversationId: room, sender, toolName, status, createdAt }),
+		JSON.stringify({ id, conversationId: resolvedRoom, sender, toolName, status, createdAt }),
 		{
 			headers: { "Content-Type": "application/json" },
 		}
