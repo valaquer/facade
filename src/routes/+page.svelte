@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { marked } from 'marked';
 	import { onMount, onDestroy } from 'svelte';
-	import autosize from 'autosize';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -179,7 +178,6 @@
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
 		newMessage = "";
-		if (inputRef) inputRef.style.height = '';
 
 		try {
 			const res = await fetch("/api/message", {
@@ -228,12 +226,6 @@
 
 	let inputRef: HTMLTextAreaElement | undefined = $state();
 
-	$effect(() => {
-		if (inputRef) {
-			autosize(inputRef);
-			return () => autosize.destroy(inputRef);
-		}
-	});
 
 	$effect(() => {
 		const idx = selectedIndex;
@@ -575,7 +567,7 @@
 								class="w-full bg-transparent outline-none resize-none"
 								rows="1"
 								placeholder="Type a message..."
-								style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none; max-height: 200px;"
+								style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none; max-height: 200px; field-sizing: content;"
 							></textarea>
 							<div style="height: 29px;"></div>
 						</div>
