@@ -111,6 +111,7 @@
 	let newMessage = $state("");
 	let eventSource: EventSource | undefined;
 	let messagesContainer: HTMLElement | undefined = $state();
+	let liveMirrorActive = $state(false);
 	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
 	// sidebarItems order is teammates → huddles → past rooms
 	// preBookmarkCount = index where past rooms start in sidebarItems
@@ -194,11 +195,14 @@
 	onMount(() => {
 		loadSidebar();
 		loadBookmarks();
+		fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {});
 		eventSource = new EventSource("/api/events");
 		eventSource.onmessage = (event) => {
 			try {
 				const data = JSON.parse(event.data);
-				if (data.type === "huddle_update") {
+				if (data.type === "livemirror_status") {
+					liveMirrorActive = data.active;
+				} else if (data.type === "huddle_update") {
 					loadSidebar();
 				} else if (data.type === "message") {
 					const convId = data.conversationId;
@@ -553,7 +557,8 @@
 		<!-- Input bar -->
 		<div style="position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-bg);">
 		<div style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
-			<div style="padding-top: calc(2rem + 0.5rem - 1px); text-align: left; align-self: start;">
+			<div style="padding-top: calc(2rem + 0.5rem - 1px); text-align: left; align-self: start; position: relative;">
+				<span class="livemirror-led" class:active={liveMirrorActive}></span>
 				<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">boss</p>
 			</div>
 			<div style="padding-top: 2rem; padding-bottom: 1rem;">
@@ -645,5 +650,19 @@
 	@keyframes bm-pulse {
 		0% { background-color: rgba(90, 62, 46, 0.3); }
 		100% { background-color: transparent; }
+	}
+	.livemirror-led {
+		position: absolute;
+		left: -20px;
+		top: calc(2rem + 0.5rem - 1px + 6px);
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: #666;
+		transition: background 0.3s, box-shadow 0.3s;
+	}
+	.livemirror-led.active {
+		background: #4ade80;
+		box-shadow: 0 0 6px #4ade80;
 	}
 </style>

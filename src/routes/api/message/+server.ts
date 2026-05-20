@@ -93,6 +93,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (command === "/start-livemirror") {
 			const globalFlag = "/Users/d.patnaik/honeybloom/library/facade/livemirror-global";
 			fs.writeFileSync(globalFlag, new Date().toISOString());
+			emitEvent({ type: "livemirror_status", active: true });
 			systemContent = "Live mirror started for all teammates";
 		} else if (command === "/end-livemirror") {
 			const globalFlag = "/Users/d.patnaik/honeybloom/library/facade/livemirror-global";
@@ -112,6 +113,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			} catch {
 				// ignore
 			}
+			emitEvent({ type: "livemirror_status", active: false });
 			systemContent = "Live mirror stopped";
 		}
 
