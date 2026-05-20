@@ -242,6 +242,8 @@ Messages sent to `huddle-{host}` rooms fan out to all huddle members. The `/api/
 
 **End auto-resolve (REQ-115):** The `end` action falls back to `resolveActiveRoom(roomId)` when `getRoom(roomId)` returns null. Handles models passing short-form IDs like `huddle-katja` instead of the full timestamped room ID.
 
+**Late-join catch-up (REQ-133):** When a participant is added to an active huddle, they receive a chronological digest of all prior conversational messages via `sendToKitty` before the "added" notification. Token noise and tool activity cards are filtered out. Uses `getMessages(roomId)` from facade-db, formatted as `[HH:MM] sender: content` per line.
+
 **Auto-request token (REQ-70):** Token enforcement is replaced with first-class auto-request. If the token is free, auto-grant and speak. If someone else holds it, auto-queue the sender and hold the message in `pending_messages` table. When the token advances to the queued sender, held messages are delivered automatically via `deliverPending()`. Boss-speaks and end-huddle deliver all pending messages via `deliverAllPending()` before clearing/closing. No 403 errors.
 
 ### Token Management (REQ-66/67)
