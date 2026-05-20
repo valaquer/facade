@@ -186,11 +186,11 @@ Design constants:
 | `src/routes/api/rooms/activate/+server.ts` | POST endpoint called by `kitty-open-teammate.sh` on tab open. Calls `activateTeammate()`, saves room to SQLite, emits SSE `room_update`. |
 | `src/routes/api/rooms/deactivate/+server.ts` | POST endpoint called by `/end-session` on tab close. Calls `deactivateTeammate()`, handles huddle cleanup (ends if host, removes + advances token if participant), emits SSE `room_update`. |
 
-### Floating Input Bar (REQ-68)
+### Floating Input Bar (REQ-68, REQ-131)
 
-The input bar uses `position: absolute; bottom: 0` inside the `position: relative` main content container. It floats over the chat area — when the textarea grows via autosize, it expands upward over chat messages without affecting the chat scroll container's height or scroll position. The chat scroll container has `padding-bottom: 130px` to clear the default single-line input bar height (~117px + breathing room). This value is coupled to the input bar layout — if the input bar's default height changes, the padding must be updated.
+The input bar uses `position: absolute; bottom: 0` inside the `position: relative` main content container. It floats over the chat area — when the textarea grows, it expands upward over chat messages without affecting the chat scroll container's height or scroll position. The chat scroll container has `padding-bottom: 130px` to clear the default single-line input bar height (~117px + breathing room). This value is coupled to the input bar layout — if the input bar's default height changes, the padding must be updated.
 
-REQ-65 (ResizeObserver scroll compensation) was removed as dead code — the floating layout eliminates the need for JavaScript-based scroll adjustment.
+Textarea auto-sizing uses CSS `field-sizing: content` (REQ-131) — native browser layout, no JavaScript. Replaced the autosize npm library which caused intermittent input bar jumps due to its intermediate `height: auto` reset during resize measurement. `max-height: 200px` caps growth; `rows="1"` sets minimum height.
 
 ### API Layer
 
