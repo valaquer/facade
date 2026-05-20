@@ -10,6 +10,7 @@ import {
 	releaseToken,
 	initHuddleToken,
 	resolveActiveRoom,
+	getMessages,
 } from "$lib/server/facade-db";
 import { emitEvent } from "$lib/server/events";
 import { sendToKitty } from "$lib/server/kitten";
@@ -182,6 +183,39 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		if (newlyAdded.length > 0) {
 			await Promise.all(newlyAdded.map((name) => ensureTabOpen(name)));
+
+			// Send huddle catch-up digest to newly added participants
+			const allMessages = getMessages(roomId);
+			const conversational = allMessages.filter((m) => {
+				if (m.type === "tool_call") return false;
+				if (m.sender === "system") {
+					const c = m.content;
+					if (
+						c.startsWith("Token passed to ") ||
+						c.includes("token released") ||
+						c.includes("Token available")
+					)
+						return false;
+				}
+				return true;
+			});
+			if (conversational.length > 0) {
+				const lines = conversational.map((m) => {
+					const d = new Date(m.createdAt);
+					const hh = String(d.getHours()).padStart(2, "0");
+					const mm = String(d.getMinutes()).padStart(2, "0");
+					return `[${hh}:${mm}] ${m.sender}: ${m.content}`;
+				});
+				const digest = `[huddle catch-up] ${conversational.length} messages so far:\n\n${lines.join("\n")}`;
+				for (const name of newlyAdded) {
+					sendToKitty(name, {
+						sender: "system",
+						room: roomId,
+						body: digest,
+						timestamp: new Date().toISOString(),
+					}).catch(() => {});
+				}
+			}
 
 			const notification = `${newlyAdded.join(", ")} added to huddle ${roomId}.`;
 			const msg = {
