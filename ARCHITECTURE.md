@@ -257,11 +257,13 @@ Shared logic in `src/lib/server/token-helpers.ts`:
 
 Real-time tool activity relay for huddle observability. Three-part pipeline:
 
-1. **PostToolUse hook** (`chica/hooks/facade-relay.sh`): Registered in `~/.claude/settings.json` for all Claude Code teammates. Checks flag file `/tmp/facade-relay-active-{teammate}` — exits immediately if absent (zero cost). Filters out `post_to_facade` tool calls (REQ-80). POSTs to `/api/tool-activity`.
+1. **PostToolUse hook** (`chica/hooks/facade-relay.sh`): Registered in `~/.claude/settings.json` for all Claude Code teammates. Checks global flag at `library/facade/livemirror-global` (REQ-134) — persists across reboot/restart. Exits immediately if absent (zero cost). Filters out `post_to_facade` tool calls (REQ-80). POSTs to `/api/tool-activity`.
 2. **API endpoint** (`src/routes/api/tool-activity/+server.ts`): Saves as `type: "tool_call"` in SQLite, emits SSE with `toolCall: true`. Fans out full detail to all huddle participants' Kitty tabs via `sendToKitty` (REQ-81). Format: `[live-mirror] {sender} used {toolName}` + input + output + status.
 3. **UI rendering** (`renderToolCard` in `+page.svelte`): Renders tool activity as compact cards with status badge, tool name, input/output blocks. Word wrap via `white-space: pre-wrap` (REQ-80). Sender label baseline aligned with card title via conditional padding (REQ-82).
 
-Activation: Boss types `/start-livemirror {teammate}` in Facade input bar. Deactivation: `/end-livemirror`.
+Activation: Boss types `/start-livemirror` in Facade input bar. Deactivation: `/end-livemirror`. Global — applies to all teammates across all rooms. Persists through browser refresh, Facade restart, Kitty restart, and computer shutdown.
+
+**Status indicator (REQ-135):** Green LED (8px circle, `#4ade80` with glow) positioned left of the "boss" label in the input bar. Gray (`#666`) when off. Initial state fetched from `/api/livemirror-status` on page load, updated in real time via `livemirror_status` SSE events.
 
 ### REQ Log
 
