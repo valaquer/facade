@@ -15,6 +15,7 @@ import {
 	clearTokensAndNotify,
 	startTokenTimer,
 	clearTokenTimer,
+	forceAssignTokenAndNotify,
 } from "$lib/server/token-helpers";
 import { v4 } from "uuid";
 import fs from "fs";
@@ -190,9 +191,20 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 		}
 		if (sender === "boss") {
-			// Boss message clears all tokens — everyone re-requests fresh
-			clearTokenTimer(resolvedRoom);
-			clearTokensAndNotify(resolvedRoom);
+			// Boss-mention token priority: if first word is a participant's name, assign token to them
+			const firstWord = body
+				.trim()
+				.split(/\s+/)[0]
+				.replace(/[,.:!?;]+$/, "")
+				.toLowerCase();
+			const mentioned = members.find((m: string) => m.toLowerCase() === firstWord);
+			if (mentioned) {
+				forceAssignTokenAndNotify(resolvedRoom, mentioned);
+				startTokenTimer(resolvedRoom);
+			} else {
+				clearTokenTimer(resolvedRoom);
+				clearTokensAndNotify(resolvedRoom);
+			}
 		} else {
 			// Auto-release token if sender holds it
 			clearTokenTimer(resolvedRoom);

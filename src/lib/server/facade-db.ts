@@ -127,6 +127,14 @@ export function getHuddleMembers(roomId: string): string[] {
 	}
 }
 
+export function forceAssignToken(roomId: string, holder: string): void {
+	initDb();
+	db.prepare("UPDATE huddle_tokens SET tokenHolder = ?, tokenQueue = '[]' WHERE roomId = ?").run(
+		holder,
+		roomId
+	);
+}
+
 export function requestToken(sender: string, roomId: string): string {
 	initDb();
 	const existing = db

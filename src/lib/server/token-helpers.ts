@@ -1,4 +1,10 @@
-import { releaseToken, clearAllTokens, getTokenHolder, getHuddleMembers } from "./facade-db";
+import {
+	releaseToken,
+	clearAllTokens,
+	getTokenHolder,
+	getHuddleMembers,
+	forceAssignToken,
+} from "./facade-db";
 import { sendToKitty } from "./kitten";
 
 const tokenTimers = new Map<string, NodeJS.Timeout>();
@@ -60,6 +66,26 @@ export function startTokenTimer(roomId: string): void {
 		}
 	}, 30_000);
 	tokenTimers.set(roomId, timer);
+}
+
+export function forceAssignTokenAndNotify(roomId: string, targetName: string): void {
+	clearTokenTimer(roomId);
+	forceAssignToken(roomId, targetName);
+	const members = getHuddleMembers(roomId);
+	const now = new Date().toISOString();
+
+	for (const m of members) {
+		const body =
+			m === targetName
+				? "You have the token. Read posted messages before posting. Check if what you wanted to post still makes sense given the other messages already posted. Agree or disagree but don't repeat what is already said."
+				: `Token assigned to ${targetName}.`;
+		sendToKitty(m, {
+			sender: "system",
+			room: roomId,
+			body,
+			timestamp: now,
+		}).catch(() => {});
+	}
 }
 
 export function clearTokenTimer(roomId: string): void {
