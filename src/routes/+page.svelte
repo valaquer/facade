@@ -618,7 +618,7 @@
 							class="bookmark-btn"
 							onclick={() => toggleBookmark(msg)}
 							title="Bookmark this message"
-						>🔖</button>
+						><svg width="14" height="14" viewBox="0 0 24 24" fill={bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'} stroke={bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg></button>
 					</div>
 				{/each}
 			</div>
@@ -640,6 +640,9 @@
 				</button>
 				<button class="control-btn" onclick={() => flushQueue()} title="Stop — catch up to latest">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill={scrollState === 'paused' ? '#7a5e4a' : '#555'} stroke="none"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>
+				</button>
+				<button class="control-btn" title="Bookmark">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="#555" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg>
 				</button>
 			</div>
 		</div>
@@ -720,7 +723,7 @@
 	.bookmark-btn {
 		position: absolute;
 		top: 2rem;
-		right: 0;
+		right: -24px;
 		background: none;
 		border: none;
 		cursor: pointer;
