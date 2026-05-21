@@ -194,40 +194,74 @@
 		}
 	}
 
+	function handleSSE(event: MessageEvent) {
+		try {
+			const data = JSON.parse(event.data);
+			if (data.type === "livemirror_status") {
+				liveMirrorActive = data.active;
+			} else if (data.type === "huddle_update") {
+				loadSidebar();
+			} else if (data.type === "message") {
+				const convId = data.conversationId;
+				const msg: ChatMsg = {
+					id: data.id ?? `${convId}-${Date.now()}`,
+					sender: data.sender,
+					content: data.content,
+					createdAt: data.timestamp ?? new Date().toISOString(),
+					toolCall: data.toolCall === true,
+				};
+				conversations[convId] = [...(conversations[convId] ?? []), msg];
+				conversations = conversations;
+				if (convId === selectedConvId) {
+				}
+			}
+		} catch {
+			// ignore parse errors
+		}
+	}
+
+	function connectEventSource() {
+		eventSource?.close();
+		eventSource = new EventSource("/api/events");
+		eventSource.onmessage = handleSSE;
+	}
+
+	function reconnect() {
+		connectEventSource();
+		loadSidebar();
+		fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {});
+		// Reload current room messages
+		const convId = selectedConvId;
+		if (convId) {
+			fetch(`/api/messages?room=${convId}`)
+				.then((r) => r.json())
+				.then((msgs: any[]) => {
+					conversations[convId] = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
+					conversations = conversations;
+				})
+				.catch(() => {});
+		}
+	}
+
+	function handleVisibilityChange() {
+		if (document.visibilityState === 'visible') {
+			reconnect();
+		}
+	}
+
 	onMount(() => {
 		loadSidebar();
 		loadBookmarks();
 		fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {});
-		eventSource = new EventSource("/api/events");
-		eventSource.onmessage = (event) => {
-			try {
-				const data = JSON.parse(event.data);
-				if (data.type === "livemirror_status") {
-					liveMirrorActive = data.active;
-				} else if (data.type === "huddle_update") {
-					loadSidebar();
-				} else if (data.type === "message") {
-					const convId = data.conversationId;
-					const msg: ChatMsg = {
-						id: data.id ?? `${convId}-${Date.now()}`,
-						sender: data.sender,
-						content: data.content,
-						createdAt: data.timestamp ?? new Date().toISOString(),
-						toolCall: data.toolCall === true,
-					};
-					conversations[convId] = [...(conversations[convId] ?? []), msg];
-					conversations = conversations;
-					if (convId === selectedConvId) {
-					}
-				}
-			} catch {
-				// ignore parse errors
-			}
-		};
+		connectEventSource();
+		document.addEventListener('visibilitychange', handleVisibilityChange);
 	});
 
 	onDestroy(() => {
 		eventSource?.close();
+		if (typeof document !== 'undefined') {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		}
 	});
 
 	let inputRef: HTMLTextAreaElement | undefined = $state();
