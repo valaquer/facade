@@ -311,6 +311,7 @@ Activation: Boss types `/start-livemirror` in Facade input bar. Deactivation: `/
 | REQ-126 | Event-driven room lifecycle — replaces 3s room-sync polling with POST /api/rooms/activate (tab open) and POST /api/rooms/deactivate (tab close / ungraceful exit). Deactivate handles huddle cleanup. room-sync.ts deleted. Hover × in sidebar for manual dismissal. | Shipped |
 | REQ-138 | Smart dismiss — × button checks if Kitty tab is alive via `isTabAlive()`. If alive, closes it via `closeKittyTab()` before deactivating. Covers CMD+W and crash cases without polling. | Shipped |
 | REQ-139 | Control strip + auto-scroll pause. Invisible strip above input bar (premium black, no border). Contains live mirror LED (relocated from boss label) and scroll pause toggle. Pause gates the $effect scroll-to-bottom. Auto-resumes on send. Copper (#7a5e4a) when paused, gray (#555) when active. Lucide inline SVGs. | Shipped |
+| REQ-140 | Auto-reconnect on tab visibility change. `visibilitychange` listener reconnects SSE EventSource + reloads sidebar + current room messages when Boss returns from another browser tab. Fixes blank screen after backgrounded tab. SSR guard on onDestroy. | Shipped |
 
 ## Conventions
 
