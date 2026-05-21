@@ -112,7 +112,8 @@
 	let eventSource: EventSource | undefined;
 	let messagesContainer: HTMLElement | undefined = $state();
 	let liveMirrorActive = $state(false);
-	let scrollPaused = $state(false);
+	let scrollState = $state<'live' | 'paused'>('live');
+	let messageQueue = $state<ChatMsg[]>([]);
 	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
 	// sidebarItems order is teammates → huddles → past rooms
 	// preBookmarkCount = index where past rooms start in sidebarItems
@@ -176,11 +177,40 @@
 		}, 300);
 	}
 
+	function flushQueue() {
+		if (messageQueue.length > 0) {
+			const convId = selectedConvId;
+			if (convId) {
+				conversations[convId] = [...(conversations[convId] ?? []), ...messageQueue];
+				conversations = conversations;
+			}
+			messageQueue = [];
+		}
+		scrollState = 'live';
+	}
+
+	function stepOne() {
+		if (messageQueue.length === 0) return;
+		const msg = messageQueue[0];
+		messageQueue = messageQueue.slice(1);
+		const convId = selectedConvId;
+		if (convId) {
+			conversations[convId] = [...(conversations[convId] ?? []), msg];
+			conversations = conversations;
+			setTimeout(() => {
+				if (messagesContainer) {
+					const el = messagesContainer.querySelector(`[data-msg-id="${msg.id}"]`);
+					if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+				}
+			}, 50);
+		}
+	}
+
 	async function sendMessage() {
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
 		newMessage = "";
-		scrollPaused = false;
+		flushQueue();
 
 		try {
 			const res = await fetch("/api/message", {
@@ -210,9 +240,11 @@
 					createdAt: data.timestamp ?? new Date().toISOString(),
 					toolCall: data.toolCall === true,
 				};
-				conversations[convId] = [...(conversations[convId] ?? []), msg];
-				conversations = conversations;
-				if (convId === selectedConvId) {
+				if (scrollState === 'paused' && convId === selectedConvId) {
+					messageQueue = [...messageQueue, msg];
+				} else {
+					conversations[convId] = [...(conversations[convId] ?? []), msg];
+					conversations = conversations;
 				}
 			}
 		} catch {
@@ -279,6 +311,7 @@
 		if (room && room !== prevRoom) {
 			prevRoom = room;
 			savePrefs();
+			flushQueue();
 		}
 	});
 
@@ -319,7 +352,7 @@
 
 	$effect(() => {
 		currentMessages;
-		if (messagesContainer && !scrollPaused) {
+		if (messagesContainer && scrollState === 'live') {
 			messagesContainer.scrollTop = messagesContainer.scrollHeight;
 		}
 	});
@@ -565,7 +598,7 @@
 	<div class="flex-1 flex flex-col" style="height: 100vh; position: relative;">
 	{#if selectedConvId}
 		<!-- Conversation area (scrollable) -->
-		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 130px;" bind:this={messagesContainer}>
+		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 120px;" bind:this={messagesContainer}>
 			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto; margin-top: auto;">
 				{#each currentMessages as msg}
 					<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
@@ -596,13 +629,17 @@
 		<div style="max-width: 570px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
 			<div></div>
 			<div class="control-strip">
-				<span class="control-led" class:active={liveMirrorActive} title="Live mirror"></span>
-				<button class="control-btn" onclick={() => scrollPaused = !scrollPaused} title={scrollPaused ? "Resume auto-scroll" : "Pause auto-scroll"}>
-					{#if scrollPaused}
+				<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} title="Live mirror"></span>
+				<button class="control-btn" onclick={() => { if (scrollState === 'live') { scrollState = 'paused'; } else { stepOne(); } }} title={scrollState === 'live' ? "Pause" : messageQueue.length > 0 ? "Next message" : "Paused"}>
+					{#if scrollState === 'paused'}
 						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a5e4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+						{#if messageQueue.length > 0}<span class="queue-badge">{messageQueue.length}</span>{/if}
 					{:else}
 						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"></rect><rect x="6" y="4" width="4" height="16" rx="1"></rect></svg>
 					{/if}
+				</button>
+				<button class="control-btn" onclick={() => flushQueue()} title="Stop — catch up to latest">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill={scrollState === 'paused' ? '#7a5e4a' : '#555'} stroke="none"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>
 				</button>
 			</div>
 		</div>
@@ -716,9 +753,18 @@
 		padding: 2px 4px;
 		opacity: 0.6;
 		transition: opacity 0.15s;
+		display: flex;
+		align-items: center;
+		gap: 3px;
 	}
 	.control-btn:hover {
 		opacity: 1;
+	}
+	.queue-badge {
+		font-size: 10px;
+		color: #7a5e4a;
+		font-family: var(--font-mono);
+		margin-left: 2px;
 	}
 	.control-led {
 		width: 8px;
