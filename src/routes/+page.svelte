@@ -112,6 +112,7 @@
 	let eventSource: EventSource | undefined;
 	let messagesContainer: HTMLElement | undefined = $state();
 	let liveMirrorActive = $state(false);
+	let scrollPaused = $state(false);
 	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
 	// sidebarItems order is teammates → huddles → past rooms
 	// preBookmarkCount = index where past rooms start in sidebarItems
@@ -179,6 +180,7 @@
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
 		newMessage = "";
+		scrollPaused = false;
 
 		try {
 			const res = await fetch("/api/message", {
@@ -283,7 +285,7 @@
 
 	$effect(() => {
 		currentMessages;
-		if (messagesContainer) {
+		if (messagesContainer && !scrollPaused) {
 			messagesContainer.scrollTop = messagesContainer.scrollHeight;
 		}
 	});
@@ -556,12 +558,25 @@
 		</div>
 		<!-- Input bar -->
 		<div style="position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-bg);">
+		<!-- Control strip -->
+		<div style="max-width: 570px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
+			<div></div>
+			<div class="control-strip">
+				<span class="control-led" class:active={liveMirrorActive} title="Live mirror"></span>
+				<button class="control-btn" onclick={() => scrollPaused = !scrollPaused} title={scrollPaused ? "Resume auto-scroll" : "Pause auto-scroll"}>
+					{#if scrollPaused}
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a5e4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+					{:else}
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"></rect><rect x="6" y="4" width="4" height="16" rx="1"></rect></svg>
+					{/if}
+				</button>
+			</div>
+		</div>
 		<div style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
-			<div style="padding-top: calc(2rem + 0.5rem - 1px); text-align: left; align-self: start; position: relative;">
-				<span class="livemirror-led" class:active={liveMirrorActive}></span>
+			<div style="padding-top: calc(0.5rem - 1px); text-align: left; align-self: start;">
 				<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">boss</p>
 			</div>
-			<div style="padding-top: 2rem; padding-bottom: 1rem;">
+			<div style="padding-top: 0; padding-bottom: 1rem;">
 				<form onsubmit={(e) => { e.preventDefault(); sendMessage(); }}>
 					<div style="border: 1px dashed var(--color-bg-step4); border-left: 2px solid #5A3E2E;">
 						<div style="padding: 0.5rem 1rem 0.5rem 1.5rem; background: var(--color-bg-element);">
@@ -650,6 +665,37 @@
 	@keyframes bm-pulse {
 		0% { background-color: rgba(90, 62, 46, 0.3); }
 		100% { background-color: transparent; }
+	}
+	.control-strip {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding: 6px 0 6px 1.5rem;
+		background: var(--color-bg);
+	}
+	.control-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 11px;
+		color: var(--color-text-muted);
+		padding: 2px 4px;
+		opacity: 0.6;
+		transition: opacity 0.15s;
+	}
+	.control-btn:hover {
+		opacity: 1;
+	}
+	.control-led {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: #666;
+		transition: background 0.3s, box-shadow 0.3s;
+	}
+	.control-led.active {
+		background: #4ade80;
+		box-shadow: 0 0 6px #4ade80;
 	}
 	.livemirror-led {
 		position: absolute;
