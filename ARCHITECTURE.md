@@ -186,6 +186,10 @@ Design constants:
 | `src/routes/api/rooms/activate/+server.ts` | POST endpoint called by `kitty-open-teammate.sh` on tab open. Calls `activateTeammate()`, saves room to SQLite, emits SSE `room_update`. |
 | `src/routes/api/rooms/deactivate/+server.ts` | POST endpoint called by `/end-session` on tab close or hover × dismiss. Smart dismiss (REQ-138): checks if Kitty tab is alive via `isTabAlive()` — if so, closes it via `closeKittyTab()` before deactivating. Then calls `deactivateTeammate()`, handles huddle cleanup (ends if host, removes + advances token if participant), emits SSE `room_update`. |
 
+### Control Strip (REQ-139)
+
+Invisible toolbar above the input bar, inside the absolute-positioned input area. Premium black (`--color-bg`) background, no border, 6px vertical padding. Uses the same 72px+1fr grid as the input bar for alignment. Contains: live mirror LED (relocated from boss label area), scroll pause toggle. Icons are inline Lucide SVGs at 14px, `#555` default, `#7a5e4a` copper when active. `scrollPaused` state gates the `$effect` that auto-scrolls on new messages. Auto-resumes when Boss sends a message.
+
 ### Floating Input Bar (REQ-68, REQ-131)
 
 The input bar uses `position: absolute; bottom: 0` inside the `position: relative` main content container. It floats over the chat area — when the textarea grows, it expands upward over chat messages without affecting the chat scroll container's height or scroll position. The chat scroll container has `padding-bottom: 130px` to clear the default single-line input bar height (~117px + breathing room). This value is coupled to the input bar layout — if the input bar's default height changes, the padding must be updated.
@@ -306,6 +310,7 @@ Activation: Boss types `/start-livemirror` in Facade input bar. Deactivation: `/
 | REQ-070 | Auto-request token — no 403. Token free → auto-grant. Someone else holds → auto-queue + hold message in pending_messages. Delivered on token advance, Boss-speaks, or huddle end. | Shipped |
 | REQ-126 | Event-driven room lifecycle — replaces 3s room-sync polling with POST /api/rooms/activate (tab open) and POST /api/rooms/deactivate (tab close / ungraceful exit). Deactivate handles huddle cleanup. room-sync.ts deleted. Hover × in sidebar for manual dismissal. | Shipped |
 | REQ-138 | Smart dismiss — × button checks if Kitty tab is alive via `isTabAlive()`. If alive, closes it via `closeKittyTab()` before deactivating. Covers CMD+W and crash cases without polling. | Shipped |
+| REQ-139 | Control strip + auto-scroll pause. Invisible strip above input bar (premium black, no border). Contains live mirror LED (relocated from boss label) and scroll pause toggle. Pause gates the $effect scroll-to-bottom. Auto-resumes on send. Copper (#7a5e4a) when paused, gray (#555) when active. Lucide inline SVGs. | Shipped |
 
 ## Conventions
 
