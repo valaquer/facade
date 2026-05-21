@@ -17,7 +17,7 @@ function enqueue(teammate: string, fn: () => Promise<void>): Promise<void> {
 	return next;
 }
 
-async function discoverSocket(): Promise<string | null> {
+export async function discoverSocket(): Promise<string | null> {
 	const envSocket = process.env.KITTY_LISTEN_ON;
 
 	if (envSocket) {
@@ -110,4 +110,35 @@ export function sendToKitty(
 		}
 	});
 	return work.then(() => result);
+}
+
+export async function isTabAlive(teammate: string): Promise<boolean> {
+	const socket = await discoverSocket();
+	if (!socket) return false;
+	try {
+		const { stdout } = await execFileAsync(
+			KITTEN,
+			["@", "--to", socket, "ls", "--match", `var:teammate=${teammate}`],
+			{ timeout: 3000 }
+		);
+		const data = JSON.parse(stdout);
+		return Array.isArray(data) && data.length > 0;
+	} catch {
+		return false;
+	}
+}
+
+export async function closeKittyTab(teammate: string): Promise<boolean> {
+	const socket = await discoverSocket();
+	if (!socket) return false;
+	try {
+		await execFileAsync(
+			KITTEN,
+			["@", "--to", socket, "close-tab", "--match", `var:teammate=${teammate}`],
+			{ timeout: 3000 }
+		);
+		return true;
+	} catch {
+		return false;
+	}
 }

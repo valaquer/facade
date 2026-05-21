@@ -10,6 +10,7 @@ import { deactivateTeammate } from "$lib/server/active-teammates";
 import { emitEvent } from "$lib/server/events";
 import { endHuddle } from "$lib/server/huddle-helpers";
 import { clearTokenTimer, advanceTokenAndNotify, startTokenTimer } from "$lib/server/token-helpers";
+import { isTabAlive, closeKittyTab } from "$lib/server/kitten";
 
 export const POST: RequestHandler = async ({ request }) => {
 	const { name } = await request.json();
@@ -18,6 +19,12 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const teammate = name.toLowerCase();
+
+	// If the Kitty tab is still alive, close it first (REQ-138)
+	const tabAlive = await isTabAlive(teammate);
+	if (tabAlive) {
+		await closeKittyTab(teammate);
+	}
 
 	// Huddle cleanup: check if this teammate is in any active huddle
 	const activeHuddles = getRoomsByType("huddle");
