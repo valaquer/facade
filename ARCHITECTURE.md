@@ -186,9 +186,9 @@ Design constants:
 | `src/routes/api/rooms/activate/+server.ts` | POST endpoint called by `kitty-open-teammate.sh` on tab open. Calls `activateTeammate()`, saves room to SQLite, emits SSE `room_update`. |
 | `src/routes/api/rooms/deactivate/+server.ts` | POST endpoint called by `/end-session` on tab close or hover × dismiss. Smart dismiss (REQ-138): checks if Kitty tab is alive via `isTabAlive()` — if so, closes it via `closeKittyTab()` before deactivating. Then calls `deactivateTeammate()`, handles huddle cleanup (ends if host, removes + advances token if participant), emits SSE `room_update`. |
 
-### Control Strip (REQ-139)
+### Control Strip (REQ-139, REQ-142)
 
-Invisible toolbar above the input bar, inside the absolute-positioned input area. Premium black (`--color-bg`) background, no border, 6px vertical padding. Uses the same 72px+1fr grid as the input bar for alignment. Contains: live mirror LED (relocated from boss label area), scroll pause toggle. Icons are inline Lucide SVGs at 14px, `#555` default, `#7a5e4a` copper when active. `scrollPaused` state gates the `$effect` that auto-scrolls on new messages. Auto-resumes when Boss sends a message.
+Invisible toolbar above the input bar, inside the absolute-positioned input area. Premium black (`--color-bg`) background, no border, 6px vertical padding. Uses the same 72px+1fr grid as the input bar for alignment. Contains: live mirror LED (16px gap to next icon), pause/play button, stop button. Icons are inline Lucide SVGs at 14px, `#555` default, `#7a5e4a` copper when active. VCR 3-state model: `scrollState` ('live' | 'paused') + `messageQueue` array. When paused, SSE messages for the current room queue invisibly. Play pops one and scrolls to it (`scrollIntoView block: center`). Stop flushes queue to live. Queue counter badge (copper 10px) next to play icon. Auto-flush on send and room switch.
 
 ### Floating Input Bar (REQ-68, REQ-131)
 
@@ -312,6 +312,7 @@ Activation: Boss types `/start-livemirror` in Facade input bar. Deactivation: `/
 | REQ-138 | Smart dismiss — × button checks if Kitty tab is alive via `isTabAlive()`. If alive, closes it via `closeKittyTab()` before deactivating. Covers CMD+W and crash cases without polling. | Shipped |
 | REQ-139 | Control strip + auto-scroll pause. Invisible strip above input bar (premium black, no border). Contains live mirror LED (relocated from boss label) and scroll pause toggle. Pause gates the $effect scroll-to-bottom. Auto-resumes on send. Copper (#7a5e4a) when paused, gray (#555) when active. Lucide inline SVGs. | Shipped |
 | REQ-140 | Auto-reconnect on tab visibility change. `visibilitychange` listener reconnects SSE EventSource + reloads sidebar + current room messages when Boss returns from another browser tab. Fixes blank screen after backgrounded tab. SSR guard on onDestroy. | Shipped |
+| REQ-142 | VCR step-through scroll control. 3-state model: live (auto-scroll), paused (messages queue invisibly), step-through (play pops one at a time with scrollIntoView). Stop flushes queue to live. Queue counter badge (copper 10px). Control strip: LED + pause/play + stop. Auto-flush on send and room switch. Replaces REQ-139 simple pause. Padding-bottom 120px. | Shipped |
 
 ## Conventions
 
