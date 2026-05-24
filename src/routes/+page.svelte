@@ -112,8 +112,8 @@
 	let eventSource: EventSource | undefined;
 	let messagesContainer: HTMLElement | undefined = $state();
 	let liveMirrorActive = $state(false);
-	let scrollState = $state<'live' | 'paused'>('live');
-	let messageQueue = $state<ChatMsg[]>([]);
+	let pausedRoom = $state<string | null>(null);
+	let messageQueues = $state<Record<string, ChatMsg[]>>({});
 	let userScrolledUp = $state(false);
 	let loadingRoom = $state("");
 	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
@@ -183,23 +183,25 @@
 	}
 
 	function flushQueue() {
-		if (messageQueue.length > 0) {
-			const convId = selectedConvId;
-			if (convId) {
-				conversations[convId] = [...(conversations[convId] ?? []), ...messageQueue];
-				conversations = conversations;
-			}
-			messageQueue = [];
+		const convId = selectedConvId;
+		const queue = convId ? (messageQueues[convId] ?? []) : [];
+		if (queue.length > 0 && convId) {
+			conversations[convId] = [...(conversations[convId] ?? []), ...queue];
+			conversations = conversations;
+			messageQueues[convId] = [];
+			messageQueues = messageQueues;
 		}
-		scrollState = 'live';
+		pausedRoom = null;
 		userScrolledUp = false;
 	}
 
 	function stepOne() {
-		if (messageQueue.length === 0) return;
-		const msg = messageQueue[0];
-		messageQueue = messageQueue.slice(1);
 		const convId = selectedConvId;
+		const queue = convId ? (messageQueues[convId] ?? []) : [];
+		if (queue.length === 0) return;
+		const msg = queue[0];
+		messageQueues[convId!] = queue.slice(1);
+		messageQueues = messageQueues;
 		if (convId) {
 			conversations[convId] = [...(conversations[convId] ?? []), msg];
 			conversations = conversations;
@@ -246,8 +248,9 @@
 					createdAt: data.timestamp ?? new Date().toISOString(),
 					toolCall: data.toolCall === true,
 				};
-				if (convId === selectedConvId && (scrollState === 'paused' || loadingRoom)) {
-					messageQueue = [...messageQueue, msg];
+				if (convId === pausedRoom || (convId === selectedConvId && loadingRoom)) {
+					messageQueues[convId] = [...(messageQueues[convId] ?? []), msg];
+					messageQueues = messageQueues;
 				} else {
 					conversations[convId] = [...(conversations[convId] ?? []), msg];
 					conversations = conversations;
@@ -338,8 +341,6 @@
 		if (!room || room === prevRoom) return;
 		prevRoom = room;
 		savePrefs();
-		messageQueue = [];
-		scrollState = 'live';
 		userScrolledUp = false;
 		loadingRoom = room;
 		fetch(`/api/messages?room=${room}`)
@@ -389,7 +390,7 @@
 
 	$effect(() => {
 		currentMessages;
-		if (messagesContainer && scrollState === 'live' && !userScrolledUp) {
+		if (messagesContainer && pausedRoom !== selectedConvId && !userScrolledUp) {
 			messagesContainer.scrollTop = messagesContainer.scrollHeight;
 		}
 	});
@@ -654,16 +655,16 @@
 			<div></div>
 			<div class="control-strip">
 				<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} title="Live mirror"></span>
-				<button class="control-btn" onclick={() => { if (scrollState === 'live') { scrollState = 'paused'; } else { stepOne(); } }} title={scrollState === 'live' ? "Pause" : messageQueue.length > 0 ? "Next message" : "Paused"}>
-					{#if scrollState === 'paused'}
+				<button class="control-btn" onclick={() => { if (pausedRoom !== selectedConvId) { pausedRoom = selectedConvId; } else { stepOne(); } }} title={pausedRoom === selectedConvId ? (messageQueues[selectedConvId]?.length ?? 0) > 0 ? "Next message" : "Paused" : "Pause"}>
+					{#if pausedRoom === selectedConvId}
 						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a5e4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
-						{#if messageQueue.length > 0}<span class="queue-badge">{messageQueue.length}</span>{/if}
+						{#if (messageQueues[selectedConvId]?.length ?? 0) > 0}<span class="queue-badge">{messageQueues[selectedConvId]!.length}</span>{/if}
 					{:else}
 						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"></rect><rect x="6" y="4" width="4" height="16" rx="1"></rect></svg>
 					{/if}
 				</button>
 				<button class="control-btn" onclick={() => flushQueue()} title="Stop — catch up to latest">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill={scrollState === 'paused' ? '#7a5e4a' : '#555'} stroke="none"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill={pausedRoom === selectedConvId ? '#7a5e4a' : '#555'} stroke="none"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>
 				</button>
 				<button class="control-btn" title="Bookmark">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill="#555" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg>
