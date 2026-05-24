@@ -114,6 +114,8 @@
 	let liveMirrorActive = $state(false);
 	let scrollState = $state<'live' | 'paused'>('live');
 	let messageQueue = $state<ChatMsg[]>([]);
+	let userScrolledUp = $state(false);
+	let loadingRoom = $state("");
 	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
 	// sidebarItems order is teammates → huddles → past rooms
 	// preBookmarkCount = index where past rooms start in sidebarItems
@@ -187,6 +189,7 @@
 			messageQueue = [];
 		}
 		scrollState = 'live';
+		userScrolledUp = false;
 	}
 
 	function stepOne() {
@@ -240,7 +243,7 @@
 					createdAt: data.timestamp ?? new Date().toISOString(),
 					toolCall: data.toolCall === true,
 				};
-				if (scrollState === 'paused' && convId === selectedConvId) {
+				if (convId === selectedConvId && (scrollState === 'paused' || loadingRoom)) {
 					messageQueue = [...messageQueue, msg];
 				} else {
 					conversations[convId] = [...(conversations[convId] ?? []), msg];
@@ -259,20 +262,27 @@
 	}
 
 	function reconnect() {
+		// Set loading guard before SSE starts streaming — messages queue until fetch completes
+		loadingRoom = selectedConvId;
 		connectEventSource();
-		loadSidebar();
-		fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {});
-		// Reload current room messages
-		const convId = selectedConvId;
-		if (convId) {
-			fetch(`/api/messages?room=${convId}`)
-				.then((r) => r.json())
-				.then((msgs: any[]) => {
-					conversations[convId] = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
-					conversations = conversations;
-				})
-				.catch(() => {});
-		}
+		Promise.all([
+			loadSidebar(),
+			fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {}),
+		]).then(() => {
+			const convId = selectedConvId;
+			if (convId) {
+				fetch(`/api/messages?room=${convId}`)
+					.then((r) => r.json())
+					.then((msgs: any[]) => {
+						conversations[convId] = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
+						conversations = conversations;
+					})
+					.catch(() => {})
+					.finally(() => { if (loadingRoom === convId) loadingRoom = ""; });
+			} else {
+				loadingRoom = "";
+			}
+		});
 	}
 
 	function handleVisibilityChange() {
@@ -306,15 +316,28 @@
 	});
 
 	let prevRoom = "";
+
+	// Consolidated room-switch effect: saves prefs, resets per-room state, fetches messages.
+	// Replaces the old competing $effects on savePrefs, auto-scroll, and fetchMessages.
 	$effect(() => {
 		const room = selectedConvId;
-		if (room && room !== prevRoom) {
-			prevRoom = room;
-			savePrefs();
-			flushQueue();
-		}
+		if (!room || room === prevRoom) return;
+		prevRoom = room;
+		savePrefs();
+		messageQueue = [];
+		scrollState = 'live';
+		userScrolledUp = false;
+		loadingRoom = room;
+		fetch(`/api/messages?room=${room}`)
+			.then((r) => r.json())
+			.then((msgs: any[]) => {
+				if (loadingRoom !== room) return;
+				conversations[room] = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
+				conversations = conversations;
+				loadingRoom = "";
+			})
+			.catch(() => { if (loadingRoom === room) loadingRoom = ""; });
 	});
-
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.ctrlKey && e.key === 'ArrowDown') {
@@ -352,21 +375,8 @@
 
 	$effect(() => {
 		currentMessages;
-		if (messagesContainer && scrollState === 'live') {
+		if (messagesContainer && scrollState === 'live' && !userScrolledUp) {
 			messagesContainer.scrollTop = messagesContainer.scrollHeight;
-		}
-	});
-
-	$effect(() => {
-		const convId = selectedConvId;
-		if (convId && !conversations[convId]) {
-			fetch(`/api/messages?room=${convId}`)
-				.then((r) => r.json())
-				.then((msgs: any[]) => {
-					conversations[convId] = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
-					conversations = conversations;
-				})
-				.catch(() => {});
 		}
 	});
 
@@ -598,7 +608,7 @@
 	<div class="flex-1 flex flex-col" style="height: 100vh; position: relative;">
 	{#if selectedConvId}
 		<!-- Conversation area (scrollable) -->
-		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 120px;" bind:this={messagesContainer}>
+		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 120px;" bind:this={messagesContainer} onscroll={(e) => { const el = e.currentTarget; userScrolledUp = el.scrollTop < el.scrollHeight - el.clientHeight - 50; }}>
 			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto; margin-top: auto;">
 				{#each currentMessages as msg}
 					<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
