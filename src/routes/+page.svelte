@@ -141,25 +141,28 @@
 
 	async function loadSidebar() {
 		try {
-			const res = await fetch("/api/rooms");
-			const data = await res.json();
+			const [roomsRes, prefsRes] = await Promise.all([
+				fetch("/api/rooms"),
+				fetch("/api/preferences"),
+			]);
+			const data = await roomsRes.json();
+			const prefs = await prefsRes.json();
 			const teammates = (data.teammates ?? []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name, kind: "teammate" as const }));
 			const currentHuddles: SidebarItem[] = (data.huddles ?? []).map((h: { id: string; name: string; host: string; participants: string[] }) => ({ id: h.id, name: h.name, kind: "huddle" as const, participants: h.participants }));
 			const pastItems: SidebarItem[] = (data.pastRooms ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, kind: "past" as const }));
 
 			const items = [...teammates, ...currentHuddles, ...pastItems];
-			sidebarItems = items;
-			if (selectedIndex >= items.length + bookmarks.length) selectedIndex = 0;
-
-			const prefsRes = await fetch("/api/preferences");
-			const prefs = await prefsRes.json();
+			let newIndex = selectedIndex;
+			if (newIndex >= items.length + bookmarks.length) newIndex = 0;
 			if (prefs.selectedRoom) {
 				const idx = items.findIndex((i) => i.id === prefs.selectedRoom);
 				if (idx >= 0) {
 					const pastStart = items.findIndex(x => x.kind === "past");
-					selectedIndex = (pastStart >= 0 && idx >= pastStart) ? idx + bookmarks.length : idx;
+					newIndex = (pastStart >= 0 && idx >= pastStart) ? idx + bookmarks.length : idx;
 				}
 			}
+			sidebarItems = items;
+			selectedIndex = newIndex;
 		} catch {
 			sidebarItems = [];
 		}
@@ -255,33 +258,43 @@
 		}
 	}
 
+	let sseTimeout: ReturnType<typeof setTimeout> | undefined;
+
 	function connectEventSource() {
 		eventSource?.close();
+		if (sseTimeout) clearTimeout(sseTimeout);
 		eventSource = new EventSource("/api/events");
 		eventSource.onmessage = handleSSE;
+		sseTimeout = setTimeout(() => {
+			if (eventSource?.readyState !== EventSource.OPEN) {
+				eventSource?.close();
+				eventSource = new EventSource("/api/events");
+				eventSource.onmessage = handleSSE;
+				sseTimeout = setTimeout(() => {
+					if (eventSource?.readyState !== EventSource.OPEN) {
+						loadingRoom = "";
+					}
+				}, 5000);
+				eventSource.onopen = () => { if (sseTimeout) clearTimeout(sseTimeout); };
+			}
+		}, 5000);
+		eventSource.onopen = () => { if (sseTimeout) clearTimeout(sseTimeout); };
 	}
 
+	let isReconnecting = false;
+
 	function reconnect() {
-		// Set loading guard before SSE starts streaming — messages queue until fetch completes
-		loadingRoom = selectedConvId;
+		if (isReconnecting) return;
+		isReconnecting = true;
 		connectEventSource();
 		Promise.all([
 			loadSidebar(),
 			fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {}),
 		]).then(() => {
-			const convId = selectedConvId;
-			if (convId) {
-				fetch(`/api/messages?room=${convId}`)
-					.then((r) => r.json())
-					.then((msgs: any[]) => {
-						conversations[convId] = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
-						conversations = conversations;
-					})
-					.catch(() => {})
-					.finally(() => { if (loadingRoom === convId) loadingRoom = ""; });
-			} else {
-				loadingRoom = "";
-			}
+			// Force room-switch $effect to re-run and load messages
+			prevRoom = "";
+		}).finally(() => {
+			isReconnecting = false;
 		});
 	}
 
@@ -301,6 +314,7 @@
 
 	onDestroy(() => {
 		eventSource?.close();
+		if (sseTimeout) clearTimeout(sseTimeout);
 		if (typeof document !== 'undefined') {
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 		}
