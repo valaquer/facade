@@ -117,6 +117,8 @@
 	let messageQueues = $state<Record<string, ChatMsg[]>>({});
 	let userScrolledUp = $state(false);
 	let loadingRoom = $state("");
+	let pausing = $state(false);
+	let pauseError = $state(false);
 	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
 	// sidebarItems order is teammates → huddles → past rooms
 	// preBookmarkCount = index where past rooms start in sidebarItems
@@ -197,6 +199,24 @@
 		queuedMessageIds = [];
 		localStorage.removeItem('facade-queued-ids');
 		localStorage.removeItem('facade-paused-room');
+	}
+
+	async function sendPauseMessage() {
+		if (pausing) return;
+		pausing = true;
+		try {
+			const res = await fetch("/api/message", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ sender: "boss", room: selectedConvId, body: "Pause. Boss has questions." }),
+			});
+			if (!res.ok) throw new Error();
+		} catch {
+			pauseError = true;
+			setTimeout(() => pauseError = false, 2000);
+		} finally {
+			pausing = false;
+		}
 	}
 
 	function stepOne() {
@@ -711,6 +731,9 @@
 				<button class="control-btn" onclick={() => flushQueue()} title="Stop — catch up to latest">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill={pausedRoom === selectedConvId ? '#7a5e4a' : '#555'} stroke="none"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>
 					</button>
+				<button class="control-btn" onclick={sendPauseMessage} disabled={pausing} title="Pause — alert room">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pauseError ? '#e74c3c' : '#555'} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l14 14M19 5l-14 14"></path></svg>
+				</button>
 				</div>
 			</div>
 			<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
