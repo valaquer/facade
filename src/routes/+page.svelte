@@ -113,6 +113,7 @@
 	let messagesContainer: HTMLElement | undefined = $state();
 	let liveMirrorActive = $state(false);
 	let pausedRoom = $state<string | null>(null);
+	let queuedMessageIds = $state<string[]>([]);
 	let messageQueues = $state<Record<string, ChatMsg[]>>({});
 	let userScrolledUp = $state(false);
 	let loadingRoom = $state("");
@@ -193,12 +194,15 @@
 		}
 		pausedRoom = null;
 		userScrolledUp = false;
+		queuedMessageIds = [];
+		localStorage.removeItem('facade-queued-ids');
+		localStorage.removeItem('facade-paused-room');
 	}
 
 	function stepOne() {
 		const convId = selectedConvId;
 		const queue = convId ? (messageQueues[convId] ?? []) : [];
-		if (queue.length === 0) return;
+		if (queue.length === 0) { pausedRoom = null; queuedMessageIds = []; localStorage.removeItem('facade-queued-ids'); localStorage.removeItem('facade-paused-room'); return; }
 		const msg = queue[0];
 		messageQueues[convId!] = queue.slice(1);
 		messageQueues = messageQueues;
@@ -211,6 +215,12 @@
 					if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
 				}
 			}, 50);
+		}
+		if ((messageQueues[convId!] ?? []).length === 0) {
+			pausedRoom = null;
+			queuedMessageIds = [];
+			localStorage.removeItem('facade-queued-ids');
+			localStorage.removeItem('facade-paused-room');
 		}
 	}
 
@@ -251,6 +261,8 @@
 				if (convId === pausedRoom || (convId === selectedConvId && loadingRoom)) {
 					messageQueues[convId] = [...(messageQueues[convId] ?? []), msg];
 					messageQueues = messageQueues;
+					queuedMessageIds = [...queuedMessageIds, msg.id];
+					localStorage.setItem('facade-queued-ids', JSON.stringify(queuedMessageIds));
 				} else {
 					conversations[convId] = [...(conversations[convId] ?? []), msg];
 					conversations = conversations;
@@ -308,6 +320,9 @@
 	}
 
 	onMount(() => {
+		pausedRoom = localStorage.getItem('facade-paused-room');
+		const savedIds = localStorage.getItem('facade-queued-ids');
+		if (savedIds) { try { queuedMessageIds = JSON.parse(savedIds); } catch {} }
 		loadSidebar();
 		loadBookmarks();
 		fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {});
@@ -347,9 +362,25 @@
 			.then((r) => r.json())
 			.then((msgs: any[]) => {
 				if (loadingRoom !== room) return;
-				conversations[room] = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
-				conversations = conversations;
+				const parsed = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
+				// If paused and have queued IDs, split: queued go to messageQueues, rest to conversations
+				if (pausedRoom === room && queuedMessageIds.length > 0) {
+					const queued = parsed.filter((m: ChatMsg) => queuedMessageIds.includes(m.id));
+					const rest = parsed.filter((m: ChatMsg) => !queuedMessageIds.includes(m.id));
+					conversations[room] = rest;
+					conversations = conversations;
+					messageQueues[room] = queued;
+					messageQueues = messageQueues;
+				} else {
+					conversations[room] = parsed;
+					conversations = conversations;
+				}
 				loadingRoom = "";
+				// Scroll to bottom on initial load even if paused
+				setTimeout(() => {
+					if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+					if (activityContainer) activityContainer.scrollTop = activityContainer.scrollHeight;
+				}, 50);
 			})
 			.catch(() => { if (loadingRoom === room) loadingRoom = ""; });
 	});
@@ -387,11 +418,22 @@
 	}
 
 	let currentMessages = $derived(selectedConvId ? (conversations[selectedConvId] ?? []).filter((m) => !isTokenNoise(m)) : []);
+	let chatMessages = $derived(currentMessages.filter((m) => !m.toolCall));
+	let activityCards = $derived(currentMessages.filter((m) => m.toolCall));
 
 	$effect(() => {
-		currentMessages;
+		chatMessages;
 		if (messagesContainer && pausedRoom !== selectedConvId && !userScrolledUp) {
 			messagesContainer.scrollTop = messagesContainer.scrollHeight;
+		}
+	});
+
+	let activityContainer: HTMLElement | undefined = $state();
+
+	$effect(() => {
+		activityCards;
+		if (activityContainer && pausedRoom !== selectedConvId) {
+			activityContainer.scrollTop = activityContainer.scrollHeight;
 		}
 	});
 
@@ -520,9 +562,9 @@
 
 <svelte:window onkeydown={handleKeydown} onmousemove={onRulerMouseMove} onmouseup={onRulerMouseUp} />
 
-<div class="h-full flex">
+<div style="display: grid; grid-template-columns: 280px 1fr 570px 1fr 570px 1fr; height: 100vh;">
 	<!-- Sidebar -->
-	<div style="width: 280px; flex-shrink: 0; background: var(--color-bg-panel); border-right: 1px dashed var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh;">
+	<div style="background: var(--color-bg-panel); border-right: 1px dashed var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh;">
 		<div style="flex: 1; overflow-y: auto; font-family: var(--font-sans);">
 			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
 				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
@@ -620,43 +662,45 @@
 		</div>
 	</div>
 
-	<!-- Main content -->
-	<div class="flex-1 flex flex-col" style="height: 100vh; position: relative;">
+	<!-- Gap col 2 -->
+	<div></div>
 	{#if selectedConvId}
-		<!-- Conversation area (scrollable) -->
-		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 120px;" bind:this={messagesContainer} onscroll={(e) => { const el = e.currentTarget; userScrolledUp = el.scrollTop < el.scrollHeight - el.clientHeight - 50; }}>
-			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px - 150px); margin-right: auto; margin-top: auto;">
-				{#each currentMessages as msg}
-					<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
-						<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
-					</div>
-					<div class="msg-row" data-msg-id={msg.id} style="padding-top: 2rem; position: relative;">
-						<div style="border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : '2px solid transparent'}; padding-left: 1.5rem;">
-							{#if msg.toolCall}
-								{@html renderToolCard(msg.content)}
-							{:else}
-								<div class="md-content">
-									{@html renderMd(msg.content)}
-								</div>
-							{/if}
+		<!-- Chat column (col 3 — 570px) -->
+		<div style="position: relative; overflow: hidden;" class="flex flex-col">
+			<!-- Conversation area (scrollable) -->
+			<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 120px;" bind:this={messagesContainer} onscroll={(e) => { const el = e.currentTarget; userScrolledUp = el.scrollTop < el.scrollHeight - el.clientHeight - 50; }}>
+				<div class="py-2" style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-top: auto;">
+					{#each chatMessages as msg}
+						<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
+							<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
 						</div>
-						<button
-							class="bookmark-btn"
-							onclick={() => toggleBookmark(msg)}
-							title="Bookmark this message"
-						><svg width="14" height="14" viewBox="0 0 24 24" fill={bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'} stroke={bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg></button>
-					</div>
-				{/each}
+						<div class="msg-row" data-msg-id={msg.id} style="padding-top: 2rem; position: relative;">
+							<div style="border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : '2px solid transparent'}; padding-left: 1.5rem;">
+								{#if msg.toolCall}
+									{@html renderToolCard(msg.content)}
+								{:else}
+									<div class="md-content">
+										{@html renderMd(msg.content)}
+									</div>
+								{/if}
+							</div>
+							<button
+								class="bookmark-btn"
+								onclick={() => toggleBookmark(msg)}
+								title="Bookmark this message"
+							><svg width="14" height="14" viewBox="0 0 24 24" fill={bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'} stroke={bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg></button>
+						</div>
+					{/each}
+				</div>
 			</div>
-		</div>
-		<!-- Input bar -->
-		<div style="position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-bg);">
-		<!-- Control strip -->
-		<div style="max-width: 570px; margin-left: calc((100vw - 570px) / 2 - 280px - 150px); margin-right: auto; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
-			<div></div>
-			<div class="control-strip">
-				<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} title="Live mirror"></span>
-				<button class="control-btn" onclick={() => { if (pausedRoom !== selectedConvId) { pausedRoom = selectedConvId; } else { stepOne(); } }} title={pausedRoom === selectedConvId ? (messageQueues[selectedConvId]?.length ?? 0) > 0 ? "Next message" : "Paused" : "Pause"}>
+			<!-- Input bar -->
+			<div style="position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-bg);">
+			<!-- Control strip -->
+			<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
+				<div></div>
+				<div class="control-strip">
+					<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} title="Live mirror"></span>
+				<button class="control-btn" onclick={() => { if (pausedRoom !== selectedConvId) { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } else { stepOne(); } }} title={pausedRoom === selectedConvId ? ((messageQueues[selectedConvId]?.length ?? 0) > 0 ? "Next message" : "Paused") : "Pause"}>
 					{#if pausedRoom === selectedConvId}
 						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a5e4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
 						{#if (messageQueues[selectedConvId]?.length ?? 0) > 0}<span class="queue-badge">{messageQueues[selectedConvId]!.length}</span>{/if}
@@ -666,42 +710,69 @@
 				</button>
 				<button class="control-btn" onclick={() => flushQueue()} title="Stop — catch up to latest">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill={pausedRoom === selectedConvId ? '#7a5e4a' : '#555'} stroke="none"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>
-				</button>
-				<button class="control-btn" title="Bookmark">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="#555" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg>
-				</button>
+					</button>
+					<button class="control-btn" title="Bookmark">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="#555" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg>
+					</button>
+				</div>
 			</div>
-		</div>
-		<div style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px - 150px); margin-right: auto;">
-			<div style="padding-top: calc(0.5rem - 1px); text-align: left; align-self: start;">
-				<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">boss</p>
-			</div>
-			<div style="padding-top: 0; padding-bottom: 1rem;">
-				<form onsubmit={(e) => { e.preventDefault(); sendMessage(); }}>
-					<div style="border: 1px dashed var(--color-bg-step4); border-left: 2px solid #5A3E2E;">
-						<div style="padding: 0.5rem 1rem 0.5rem 1.5rem; background: var(--color-bg-element);">
-							<textarea
-								bind:value={newMessage}
-								bind:this={inputRef}
-								onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-								class="w-full bg-transparent outline-none resize-none"
-								rows="1"
-								placeholder="Type a message..."
-								style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none; max-height: 200px; field-sizing: content;"
-							></textarea>
-							<div style="height: 29px;"></div>
+			<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
+				<div style="padding-top: calc(0.5rem - 1px); text-align: left; align-self: start;">
+					<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">boss</p>
+				</div>
+				<div style="padding-top: 0; padding-bottom: 1rem;">
+					<form onsubmit={(e) => { e.preventDefault(); sendMessage(); }}>
+						<div style="border: 1px dashed var(--color-bg-step4); border-left: 2px solid #5A3E2E;">
+							<div style="padding: 0.5rem 1rem 0.5rem 1.5rem; background: var(--color-bg-element);">
+								<textarea
+									bind:value={newMessage}
+									bind:this={inputRef}
+									onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+									class="w-full bg-transparent outline-none resize-none"
+									rows="1"
+									placeholder="Type a message..."
+									style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none; max-height: 200px; field-sizing: content;"
+								></textarea>
+								<div style="height: 29px;"></div>
+							</div>
 						</div>
-					</div>
-				</form>
+					</form>
+				</div>
+			</div>
 			</div>
 		</div>
+		<!-- Gap col 4 -->
+		<div></div>
+		<!-- Duplicate message feed (col 5 — 570px, read-only) -->
+		<div bind:this={activityContainer} style="overflow-y: auto; background: var(--color-bg);">
+			<div class="py-2" style="padding-top: 0.5rem;">
+				<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
+					{#each activityCards as msg}
+						<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
+							<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
+						</div>
+						<div style="padding-top: 2rem;">
+							<div style="border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : '2px solid transparent'}; padding-left: 1.5rem;">
+								{#if msg.toolCall}
+									{@html renderToolCard(msg.content)}
+								{:else}
+									<div class="md-content">
+										{@html renderMd(msg.content)}
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
 		</div>
+		<!-- Gap col 6 -->
+		<div></div>
 	{:else}
-		<div class="flex-1 flex items-center justify-center" style="background: var(--color-bg);">
+		<div style="grid-column: 3 / 7; display: flex; align-items: center; justify-content: center; background: var(--color-bg);">
 			<p style="color: var(--color-text-muted); font-size: 12px;">Select a teammate</p>
 		</div>
 	{/if}
-	</div>
 </div>
 
 <!-- Ruler toggle button -->
