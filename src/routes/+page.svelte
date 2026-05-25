@@ -625,7 +625,7 @@
 	{#if selectedConvId}
 		<!-- Conversation area (scrollable) -->
 		<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 120px;" bind:this={messagesContainer} onscroll={(e) => { const el = e.currentTarget; userScrolledUp = el.scrollTop < el.scrollHeight - el.clientHeight - 50; }}>
-			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto; margin-top: auto;">
+			<div class="py-2" style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px - 150px); margin-right: auto; margin-top: auto;">
 				{#each currentMessages as msg}
 					<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
 						<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
@@ -652,7 +652,7 @@
 		<!-- Input bar -->
 		<div style="position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-bg);">
 		<!-- Control strip -->
-		<div style="max-width: 570px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
+		<div style="max-width: 570px; margin-left: calc((100vw - 570px) / 2 - 280px - 150px); margin-right: auto; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
 			<div></div>
 			<div class="control-strip">
 				<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} title="Live mirror"></span>
@@ -672,7 +672,7 @@
 				</button>
 			</div>
 		</div>
-		<div style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px); margin-right: auto;">
+		<div style="max-width: 570px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-left: calc((100vw - 570px) / 2 - 280px - 150px); margin-right: auto;">
 			<div style="padding-top: calc(0.5rem - 1px); text-align: left; align-self: start;">
 				<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">boss</p>
 			</div>
