@@ -16,11 +16,15 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const activeRooms = getActiveRoomsForTeammate(sender);
 	if (activeRooms.length === 0) activeRooms.push(room); // fallback
+
+	// Dedup: if teammate is in a huddle, skip direct room to avoid double-save
+	const hasHuddle = activeRooms.some((r: string) => r.startsWith("huddle-"));
+
 	const createdAt = new Date().toISOString();
 	const content = JSON.stringify({ toolName, toolInput, toolOutput, status });
 
-	// Save + emit to every room the teammate is in
 	for (const targetRoom of activeRooms) {
+		if (hasHuddle && !targetRoom.startsWith("huddle-")) continue;
 		const id = v4();
 		saveMessage({
 			id,

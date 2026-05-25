@@ -84,7 +84,7 @@
 		});
 	});
 
-	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; participants?: string[] };
+	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; model?: string; participants?: string[] };
 	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean };
 	type Bookmark = { id: string; messageId: string; roomId: string; name: string; createdAt: string };
 
@@ -147,7 +147,7 @@
 			]);
 			const data = await roomsRes.json();
 			const prefs = await prefsRes.json();
-			const teammates = (data.teammates ?? []).map((t: { id: string; name: string }) => ({ id: t.id, name: t.name, kind: "teammate" as const })).sort((a, b) => a.name.localeCompare(b.name));
+			const teammates = (data.teammates ?? []).map((t: { id: string; name: string; model: string }) => ({ id: t.id, name: t.name, model: t.model || "", kind: "teammate" as const })).sort((a, b) => a.name.localeCompare(b.name));
 			const currentHuddles: SidebarItem[] = (data.huddles ?? []).map((h: { id: string; name: string; host: string; participants: string[] }) => ({ id: h.id, name: h.name, kind: "huddle" as const, participants: h.participants }));
 			const pastItems: SidebarItem[] = (data.pastRooms ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, kind: "past" as const }));
 
@@ -534,9 +534,10 @@
 						class="teammate-row"
 						data-nav-idx={sidebarItems.indexOf(item)}
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
+						style="padding: 0.15rem 1rem 0.4rem 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
 					>
-						{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}
+						<div>{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
+						{#if item.model}<div style="font-size: 9px; line-height: 1.4; color: #666;">{item.model}</div>{/if}
 						<button
 							class="dismiss-btn"
 							onclick={(e) => { e.stopPropagation(); dismissTeammate(fmt.label); }}

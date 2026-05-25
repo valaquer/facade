@@ -1,5 +1,8 @@
 import type { RequestHandler } from "./$types";
 import { getRoomsByType, getAllRooms, getHuddleMembers } from "$lib/server/facade-db";
+import fs from "fs";
+
+const CSV_PATH = "/Users/d.patnaik/honeybloom/rio/janus-config.csv";
 
 function parseDisplayName(roomId: string): string {
 	const match = roomId.match(/^(?:direct|huddle)-(.+?)-\d{8}-\d{6}$/);
@@ -8,14 +11,36 @@ function parseDisplayName(roomId: string): string {
 	return legacy.replace(/-legacy$/, "");
 }
 
+function loadModelMap(): Record<string, string> {
+	try {
+		const raw = fs.readFileSync(CSV_PATH, "utf-8");
+		const lines = raw.trim().split("\n");
+		const modelMap: Record<string, string> = {};
+		for (let i = 1; i < lines.length; i++) {
+			const cols = lines[i].split(",");
+			if (cols.length >= 3) {
+				modelMap[cols[0].trim().toLowerCase()] = cols[2].trim();
+			}
+		}
+		return modelMap;
+	} catch {
+		return {};
+	}
+}
+
 export const GET: RequestHandler = async () => {
+	const modelMap = loadModelMap();
 	const teammateRooms = getAllRooms().filter((r) => r.type === "teammate");
-	const teammates = teammateRooms.map((r) => ({
-		id: r.id,
-		name: parseDisplayName(r.id),
-		teammate: parseDisplayName(r.id),
-		lastActivity: r.lastActivity,
-	}));
+	const teammates = teammateRooms.map((r) => {
+		const name = parseDisplayName(r.id);
+		return {
+			id: r.id,
+			name,
+			teammate: name,
+			model: modelMap[name] || "",
+			lastActivity: r.lastActivity,
+		};
+	});
 
 	const huddleRooms = getAllRooms().filter((r) => r.type === "huddle");
 	const huddles = huddleRooms.map((r) => ({
