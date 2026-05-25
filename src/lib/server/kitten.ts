@@ -67,6 +67,7 @@ export function sendToKitty(
 			`room: ${payload.room}`,
 			`timestamp: ${payload.timestamp}`,
 			`body: "${payload.body}"`,
+			`---\nReply to: ${payload.room}`,
 		].join("\n");
 
 		try {
