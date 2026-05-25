@@ -2,7 +2,8 @@ import type { RequestHandler } from "./$types";
 import { getRoomsByType, getAllRooms, getHuddleMembers } from "$lib/server/facade-db";
 import fs from "fs";
 
-const CSV_PATH = "/Users/d.patnaik/honeybloom/rio/janus-config.csv";
+const CSV_PATH =
+	"/Users/d.patnaik/honeybloom/library/skills/gestalt-layer-3-janus/janus-config.csv";
 
 function parseDisplayName(roomId: string): string {
 	const match = roomId.match(/^(?:direct|huddle)-(.+?)-\d{8}-\d{6}$/);
