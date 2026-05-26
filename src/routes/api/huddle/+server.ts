@@ -73,7 +73,9 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const ts = formatTimestamp(new Date());
 		const rid = `huddle-${host}-${ts}`;
-		const allMembers = [host, ...participants.filter((p: string) => p !== host)];
+		const allMembers = [host, ...participants.filter((p: string) => p !== host)].filter(
+			(m: string) => m !== "boss"
+		);
 
 		const existingRoomId = resolveActiveRoom(`huddle-${host}`);
 		if (existingRoomId) {
@@ -166,9 +168,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		const room = getRoom(roomId);
 		if (!room) return new Response(JSON.stringify({ error: "Room not found" }), { status: 404 });
 
-		const current = getHuddleMembers(roomId);
-		const newlyAdded = (participants as string[]).filter((p) => !current.includes(p));
-		const updated = [...new Set([...current, ...participants])];
+		const current = getHuddleMembers(roomId).filter((m: string) => m !== "boss");
+		const cleanP = (participants as string[]).filter((p: string) => p !== "boss");
+		const newlyAdded = cleanP.filter((p) => !current.includes(p));
+		const updated = [...new Set([...current, ...cleanP])];
 		saveRoom({
 			id: roomId,
 			type: "huddle",
