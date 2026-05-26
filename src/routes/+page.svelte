@@ -85,7 +85,7 @@
 	});
 
 	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; model?: string; participants?: string[] };
-	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean };
+	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean; response?: boolean };
 	type Bookmark = { id: string; messageId: string; roomId: string; name: string; createdAt: string };
 
 	function formatPastRoom(name: string): { label: string; date: string } {
@@ -277,6 +277,7 @@
 					content: data.content,
 					createdAt: data.timestamp ?? new Date().toISOString(),
 					toolCall: data.toolCall === true,
+				response: data.response === true,
 				};
 				if (convId === pausedRoom || (convId === selectedConvId && loadingRoom)) {
 					messageQueues[convId] = [...(messageQueues[convId] ?? []), msg];
@@ -382,7 +383,7 @@
 			.then((r) => r.json())
 			.then((msgs: any[]) => {
 				if (loadingRoom !== room) return;
-				const parsed = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call" }));
+				const parsed = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call", response: m.type === "response" }));
 				// If paused and have queued IDs, split: queued go to messageQueues, rest to conversations
 				if (pausedRoom === room && queuedMessageIds.length > 0) {
 					const queued = parsed.filter((m: ChatMsg) => queuedMessageIds.includes(m.id));
@@ -438,8 +439,8 @@
 	}
 
 	let currentMessages = $derived(selectedConvId ? (conversations[selectedConvId] ?? []).filter((m) => !isTokenNoise(m)) : []);
-	let chatMessages = $derived(currentMessages.filter((m) => !m.toolCall));
-	let activityCards = $derived(currentMessages.filter((m) => m.toolCall));
+	let chatMessages = $derived(currentMessages.filter((m) => !m.toolCall && !m.response));
+	let activityCards = $derived(currentMessages.filter((m) => m.toolCall || m.response));
 
 	$effect(() => {
 		chatMessages;

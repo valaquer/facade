@@ -5,20 +5,47 @@ import { sendToKitty } from "$lib/server/kitten";
 import { v4 } from "uuid";
 
 export const POST: RequestHandler = async ({ request }) => {
-	const { sender, room, toolName, toolInput, toolOutput, status } = await request.json();
+	const data = await request.json();
+	const { sender, room, body } = data;
 
-	if (!sender || !room || !toolName) {
-		return new Response(JSON.stringify({ error: "Missing sender, room, or toolName" }), {
+	const isResponse = !data.toolName && !!body;
+	const isToolCall = !!data.toolName;
+
+	if (!sender) {
+		return new Response(JSON.stringify({ error: "Missing sender" }), {
+			status: 400,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
+	if (isToolCall && !room) {
+		return new Response(JSON.stringify({ error: "Missing room for tool call" }), {
+			status: 400,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
+	if (!isResponse && !isToolCall) {
+		return new Response(JSON.stringify({ error: "Provide toolName + tool fields, or body" }), {
 			status: 400,
 			headers: { "Content-Type": "application/json" },
 		});
 	}
 
 	const activeRooms = getActiveRoomsForTeammate(sender);
-	if (activeRooms.length === 0) activeRooms.push(room); // fallback
+	if (room && activeRooms.length === 0) activeRooms.push(room);
 
 	const createdAt = new Date().toISOString();
-	const content = JSON.stringify({ toolName, toolInput, toolOutput, status });
+	const content = isToolCall
+		? JSON.stringify({
+				toolName: data.toolName,
+				toolInput: data.toolInput,
+				toolOutput: data.toolOutput,
+				status: data.status,
+			})
+		: body;
+	const msgType = isToolCall ? "tool_call" : "response";
+	const toolCallFlag = isToolCall;
 
 	for (const targetRoom of activeRooms) {
 		const id = v4();
@@ -28,7 +55,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			sender,
 			content,
 			createdAt,
-			type: "tool_call",
+			type: msgType,
 		});
 
 		emitEvent({
@@ -37,26 +64,32 @@ export const POST: RequestHandler = async ({ request }) => {
 			sender,
 			content,
 			timestamp: createdAt,
-			toolCall: true,
+			toolCall: toolCallFlag,
+			response: isResponse,
 		});
 
-		// Kitty fan-out for huddle rooms (REQ-81)
 		if (targetRoom.startsWith("huddle-")) {
-			const inputStr =
-				typeof toolInput === "string" ? toolInput : JSON.stringify(toolInput, null, 2);
-			const body = `[live-mirror] ${sender} used ${toolName}\nInput: ${inputStr}\nOutput: ${toolOutput || "(none)"}\nStatus: ${status}`;
+			const kittyBody = isToolCall
+				? `[live-mirror] ${sender} used ${data.toolName}\nInput: ${typeof data.toolInput === "string" ? data.toolInput : JSON.stringify(data.toolInput, null, 2)}\nOutput: ${data.toolOutput || "(none)"}\nStatus: ${data.status}`
+				: body;
 			const members = getHuddleMembers(targetRoom);
 			for (const m of members) {
 				if (m !== sender) {
-					sendToKitty(m, { sender: "system", room: targetRoom, body, timestamp: createdAt }).catch(
-						() => {}
-					);
+					sendToKitty(m, {
+						sender: "system",
+						room: targetRoom,
+						body: kittyBody,
+						timestamp: createdAt,
+					}).catch(() => {});
 				}
 			}
 		}
 	}
 
-	return new Response(JSON.stringify({ sender, toolName, status, createdAt, rooms: activeRooms }), {
+	const resData = isToolCall
+		? { sender, toolName: data.toolName, status: data.status, createdAt, rooms: activeRooms }
+		: { sender, createdAt, rooms: activeRooms };
+	return new Response(JSON.stringify(resData), {
 		headers: { "Content-Type": "application/json" },
 	});
 };
