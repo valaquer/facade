@@ -15,8 +15,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	const isResponse = !data.toolName && body;
-	const isToolCall = data.toolName;
+	const isResponse = !data.toolName && !!body;
+	const isToolCall = !!data.toolName;
 
 	if (!isResponse && !isToolCall) {
 		return new Response(JSON.stringify({ error: "Provide toolName + tool fields, or body" }), {
@@ -58,6 +58,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			content,
 			timestamp: createdAt,
 			toolCall: toolCallFlag,
+			response: isResponse,
 		});
 
 		if (targetRoom.startsWith("huddle-")) {
