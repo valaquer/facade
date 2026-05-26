@@ -32,7 +32,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	const activeRooms = getActiveRoomsForTeammate(sender);
+	let activeRooms = getActiveRoomsForTeammate(sender);
+	if (isResponse) {
+		activeRooms = activeRooms.filter((r) => !r.startsWith("huddle-"));
+	}
 	if (room && activeRooms.length === 0) activeRooms.push(room);
 
 	const createdAt = new Date().toISOString();
