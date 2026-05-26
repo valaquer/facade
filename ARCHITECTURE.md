@@ -257,17 +257,57 @@ Shared logic in `src/lib/server/token-helpers.ts`:
 - **30s timeout (REQ-67):** `startTokenTimer(roomId)` sets a 30s setTimeout. If the holder doesn't post, the timer calls `getTokenHolder` (fire-time lookup, no stale refs) and advances to the next in queue. Timer restarts recursively if a new holder exists. Held messages for the new holder are delivered on advance.
 - **Timer lifecycle:** Started on grant and token advance. Cleared on post, Boss clear, manual release, participant removal, and huddle end. No orphan timers (Pattern 1).
 
-### Live Mirror (REQ-53/54/55/80/81/82)
+### Live Mirror / Tool Activity (REQ-53/54/55/80/81/82 + May 26)
 
-Real-time tool activity relay for huddle observability. Three-part pipeline:
+Real-time tool activity relay for huddle observability. Multi-part pipeline:
 
-1. **PostToolUse hook** (`chica/hooks/facade-relay.sh`): Registered in `~/.claude/settings.json` for all Claude Code teammates. Checks global flag at `library/facade/livemirror-global` (REQ-134) — persists across reboot/restart. Exits immediately if absent (zero cost). Filters out `post_to_facade` tool calls (REQ-80). POSTs to `/api/tool-activity`.
-2. **API endpoint** (`src/routes/api/tool-activity/+server.ts`): Saves as `type: "tool_call"` in SQLite, emits SSE with `toolCall: true`. Fans out full detail to all huddle participants' Kitty tabs via `sendToKitty` (REQ-81). Format: `[live-mirror] {sender} used {toolName}` + input + output + status.
-3. **UI rendering** (`renderToolCard` in `+page.svelte`): Renders tool activity as compact cards with status badge, tool name, input/output blocks. Word wrap via `white-space: pre-wrap` (REQ-80). Sender label baseline aligned with card title via conditional padding (REQ-82).
+1. **PostToolUse hook** (`chica/hooks/facade-relay.sh`): Registered in both Claude Code (`claude-settings.json`) and OpenCode (`opencode.json`) configs. Checks global flag at `library/facade/livemirror-global` (REQ-134). Exits immediately if absent (zero cost). Filters out `post_to_facade` tool calls (REQ-80) and credential-bearing paths (FP-12). POSTs to `/api/tool-activity` with `{ sender, room, toolName, toolInput, toolOutput, status, summary }`.
 
-Activation: Boss types `/start-livemirror` in Facade input bar. Deactivation: `/end-livemirror`. Global — applies to all teammates across all rooms. Persists through browser refresh, Facade restart, Kitty restart, and computer shutdown.
+2. **Summary cards (May 26):** The hook generates compact summaries per tool type:
+   - **Read**: filename + "(partial)" or "(full)" — extracted from tool output `<path>` tags and "Showing lines" footer
+   - **Grep**: filename extracted from first result line in tool output
+   - **Glob**: match count from output line count
+   - **Bash**: command text (first 80 chars) — tool input buffered via PreToolUse temp file
+   - **Edit**: filename from tool input
+   - **Write**: filename from tool input
+   - **Reddit/Vision**: generic descriptions
+   Tools without summaries (unrecognized) render as expanded cards with full input/output.
 
-**Status indicator (REQ-135):** Green LED (8px circle, `#4ade80` with glow) positioned left of the "boss" label in the input bar. Gray (`#666`) when off. Initial state fetched from `/api/livemirror-status` on page load, updated in real time via `livemirror_status` SSE events.
+3. **Tool input bridging (OpenCode only):** OpenCode's PostToolUse dispatch does not set `OPENCODE_TOOL_INPUT` (env var is always `{}`). Workaround: PreToolUse hook (`red-mist.sh`) writes `OPENCODE_TOOL_INPUT` to `/tmp/facade-tool-input-{teammate}`. PostToolUse hook reads this file when the env var is empty. Claude Code path is unaffected — stdin JSON carries full tool input.
+
+4. **Case-insensitive matching (May 26):** Tool name case patterns match both uppercase (Claude Code: `Read`) and lowercase (OpenCode: `read`).
+
+5. **API endpoint** (`src/routes/api/tool-activity/+server.ts`): Saves as `type: "tool_call"` in SQLite, emits SSE with `toolCall: true` and `summary` field. Fans out full detail to all huddle participants' Kitty tabs via `sendToKitty` (REQ-81). Format: `[live-mirror] {sender} used {toolName}` + input + output + status.
+
+6. **UI rendering** (`renderToolCard` in `+page.svelte`): If `summary` is truthy — compact card with status icon + tool name + summary text. If falsy — expanded card with full Input/Output blocks. Word wrap via `white-space: pre-wrap` (REQ-80). Sender label baseline aligned via conditional padding (REQ-82).
+
+Activation: Boss types `/start-livemirror` in Facade input bar. Deactivation: `/end-livemirror`. Global flag persists through reboot.
+
+**Status indicator (REQ-135):** Green LED (8px circle, `#4ade80` with glow) left of "boss" label. Gray (`#666`) when off.
+
+### Terminal Chatter Catcher (PostResponse, May 26)
+
+Captures model text responses (non-MCP output) to the activity column. Two-part system:
+
+1. **OpenCode fork** (`honeybloom.patch`): Adds `PostResponse` hook type at the loop exit in `prompt.ts`. Fires when `result === "stop"` or `lastAssistant.finish` includes "stop" with no pending tool calls. Extracts text-only parts from `lastAssistantMsg`, passes via stdin to hook script. Protected by try-catch — hook failure never crashes the session.
+
+2. **Hook script** (`chica/hooks/facade-response.sh`): Reads response text from stdin, POSTs to `/api/tool-activity` with `{ sender, room, body }`. Room pinned to `direct-{teammate}` — terminal chatter is Boss-only, no huddle fan-out.
+
+3. **Junk filter (May 26):** Built into facade-response.sh. Filters out responses that are ≤10 words AND contain sit-out keywords (`queue|acknowledged|holding|waiting|standing|token|nothing to add`). "OK" and "Noted" explicitly pass through (no sit-out keyword match). Prevents status acknowledgments ("OK. Standing by." etc.) from cluttering the activity column.
+
+4. **Endpoint** (`/api/tool-activity`): Saves as `type: "response"` in SQLite, emits SSE with `response: true`. Rendered alongside tool_call cards in the activity column.
+
+**Harness gap:** PostResponse hook type exists only in the OpenCode fork. Claude Code has no equivalent — terminal chatter is OpenCode-only.
+
+### Wakeup Message (REQ-85, fixed May 26)
+
+`kitty-open-teammate.sh` builds a Facade-format wakeup prompt via `build_wakeup_message()`. The prompt includes session context, Facade directive, and behavioral guidance formatted as structured metadata (`sender: boss / room: direct-{name} / timestamp / body`).
+
+**Delivery:**
+- **Claude Code**: via `--dangerously-skip-permissions "$wakeup_prompt"` — passes as initial user prompt
+- **OpenCode**: via `--prompt "$wakeup_prompt"` flag (previously missing — OpenCode launched bare with no wakeup)
+
+**Fix (May 26, 24d6dfb):** `build_wakeup_message()` was scoped inside the `else` (Claude Code) branch only. Moved before the harness check so both harnesses receive the wakeup. OpenCode gets `--prompt` flag. Claude Code path unchanged.
 
 ### REQ Log
 
@@ -313,6 +353,9 @@ Activation: Boss types `/start-livemirror` in Facade input bar. Deactivation: `/
 | REQ-139 | Control strip + auto-scroll pause. Invisible strip above input bar (premium black, no border). Contains live mirror LED (relocated from boss label) and scroll pause toggle. Pause gates the $effect scroll-to-bottom. Auto-resumes on send. Copper (#7a5e4a) when paused, gray (#555) when active. Lucide inline SVGs. | Shipped |
 | REQ-140 | Auto-reconnect on tab visibility change. `visibilitychange` listener reconnects SSE EventSource + reloads sidebar + current room messages when Boss returns from another browser tab. Fixes blank screen after backgrounded tab. SSR guard on onDestroy. | Shipped |
 | REQ-142 | VCR step-through scroll control. 3-state model: live (auto-scroll), paused (messages queue invisibly), step-through (play pops one at a time with scrollIntoView). Stop flushes queue to live. Queue counter badge (copper 10px). Control strip: LED + pause/play + stop. Auto-flush on send and room switch. Replaces REQ-139 simple pause. Padding-bottom 120px. | Shipped |
+| — | **Terminal chatter catcher** — PostResponse hook in OpenCode fork. Captures model text output to Facade activity column. Junk filter (≤10 words + sit-out keywords). OpenCode-only (Claude Code has no PostResponse hook type). | Shipped May 26 |
+| — | **Summary cards v2** — Read shows filename + partial/full, Grep shows filename, Glob shows match count, Bash shows command (80 chars), Edit/Write show filename. Case-insensitive tool name matching. PreToolUse temp file bridges tool input for OpenCode. | Shipped May 26 |
+| — | **Wakeup fix** — OpenCode now receives wakeup prompt via `--prompt` flag (was launching bare). `build_wakeup_message()` moved outside Claude Code branch. | Shipped May 26 |
 
 ## Conventions
 
