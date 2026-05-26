@@ -8,15 +8,22 @@ export const POST: RequestHandler = async ({ request }) => {
 	const data = await request.json();
 	const { sender, room, body } = data;
 
-	if (!sender || !room) {
-		return new Response(JSON.stringify({ error: "Missing sender or room" }), {
+	const isResponse = !data.toolName && !!body;
+	const isToolCall = !!data.toolName;
+
+	if (!sender) {
+		return new Response(JSON.stringify({ error: "Missing sender" }), {
 			status: 400,
 			headers: { "Content-Type": "application/json" },
 		});
 	}
 
-	const isResponse = !data.toolName && !!body;
-	const isToolCall = !!data.toolName;
+	if (isToolCall && !room) {
+		return new Response(JSON.stringify({ error: "Missing room for tool call" }), {
+			status: 400,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
 
 	if (!isResponse && !isToolCall) {
 		return new Response(JSON.stringify({ error: "Provide toolName + tool fields, or body" }), {
@@ -26,7 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const activeRooms = getActiveRoomsForTeammate(sender);
-	if (activeRooms.length === 0) activeRooms.push(room);
+	if (room && activeRooms.length === 0) activeRooms.push(room);
 
 	const createdAt = new Date().toISOString();
 	const content = isToolCall
