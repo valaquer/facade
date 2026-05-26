@@ -45,6 +45,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				toolInput: data.toolInput,
 				toolOutput: data.toolOutput,
 				status: data.status,
+				summary: data.summary || "",
 			})
 		: body;
 	const msgType = isToolCall ? "tool_call" : "response";
@@ -69,11 +70,14 @@ export const POST: RequestHandler = async ({ request }) => {
 			timestamp: createdAt,
 			toolCall: toolCallFlag,
 			response: isResponse,
+			summary: data.summary,
 		});
 
 		if (targetRoom.startsWith("huddle-")) {
 			const kittyBody = isToolCall
-				? `[live-mirror] ${sender} used ${data.toolName}\nInput: ${typeof data.toolInput === "string" ? data.toolInput : JSON.stringify(data.toolInput, null, 2)}\nOutput: ${data.toolOutput || "(none)"}\nStatus: ${data.status}`
+				? data.summary
+					? `[live-mirror] ${sender} ${data.summary}`
+					: `[live-mirror] ${sender} used ${data.toolName}\nInput: ${typeof data.toolInput === "string" ? data.toolInput : JSON.stringify(data.toolInput, null, 2)}\nOutput: ${data.toolOutput || "(none)"}\nStatus: ${data.status}`
 				: body;
 			const members = getHuddleMembers(targetRoom);
 			for (const m of members) {

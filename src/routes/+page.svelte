@@ -25,9 +25,20 @@
 	function renderToolCard(content: string): string {
 		let data: any;
 		try { data = JSON.parse(content); } catch { return renderMd(content); }
-		const { toolName, toolInput, toolOutput, status } = data;
+		const { toolName, toolInput, toolOutput, status, summary } = data;
 		const statusIcon = status === "success" ? "✓" : "✗";
 		const statusColor = status === "success" ? "#4ade80" : "#f87171";
+
+		if (summary) {
+			return `<div style="background: var(--color-bg-panel); border-radius: 4px; padding: 0.5em 0.75em;">
+				<div style="display: flex; align-items: center; gap: 0.5em;">
+					<span style="font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: ${statusColor};">${statusIcon}</span>
+					<span style="font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--color-text);">${escapeHtml(toolName)}</span>
+					<span style="font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted);">${escapeHtml(summary)}</span>
+				</div>
+			</div>`;
+		}
+
 		let inputHtml = "";
 		let outputHtml = "";
 		if (toolInput) {
@@ -85,7 +96,7 @@
 	});
 
 	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; model?: string; participants?: string[] };
-	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean; response?: boolean };
+	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean; response?: boolean; summary?: string };
 	type Bookmark = { id: string; messageId: string; roomId: string; name: string; createdAt: string };
 
 	function formatPastRoom(name: string): { label: string; date: string } {
@@ -277,7 +288,8 @@
 					content: data.content,
 					createdAt: data.timestamp ?? new Date().toISOString(),
 					toolCall: data.toolCall === true,
-				response: data.response === true,
+					response: data.response === true,
+					summary: data.summary || "",
 				};
 				if (convId === pausedRoom || (convId === selectedConvId && loadingRoom)) {
 					messageQueues[convId] = [...(messageQueues[convId] ?? []), msg];
