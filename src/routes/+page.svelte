@@ -151,6 +151,20 @@
 		return sidebarItems[sidebarIdx]?.id ?? "";
 	});
 
+	let currentRoomKind = $derived.by(() => {
+		const pbc = preBookmarkCount;
+		if (selectedIndex < pbc) {
+			return sidebarItems[selectedIndex]?.kind ?? "";
+		}
+		if (selectedIndex < pbc + bookmarks.length) {
+			const bm = bookmarks[selectedIndex - pbc];
+			const item = sidebarItems.find(x => x.id === bm?.roomId);
+			return item?.kind ?? "past";
+		}
+		const sidebarIdx = selectedIndex - bookmarks.length;
+		return sidebarItems[sidebarIdx]?.kind ?? "";
+	});
+
 	let prefsTimer: ReturnType<typeof setTimeout> | undefined;
 
 	async function loadSidebar() {
@@ -701,7 +715,7 @@
 		<!-- Chat column (col 3 — 570px) -->
 		<div style="position: relative; overflow: hidden;" class="flex flex-col">
 			<!-- Conversation area (scrollable) -->
-			<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: 120px;" bind:this={messagesContainer} onscroll={(e) => { const el = e.currentTarget; userScrolledUp = el.scrollTop < el.scrollHeight - el.clientHeight - 50; }}>
+			<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: {currentRoomKind === "past" ? '0' : '120px'};" bind:this={messagesContainer} onscroll={(e) => { const el = e.currentTarget; userScrolledUp = el.scrollTop < el.scrollHeight - el.clientHeight - 50; }}>
 				<div class="py-2" style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-top: auto;">
 					{#each chatMessages as msg}
 						<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
@@ -727,6 +741,7 @@
 				</div>
 			</div>
 			<!-- Input bar -->
+			{#if currentRoomKind !== "past"}
 			<div style="position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-bg);">
 			<!-- Control strip -->
 			<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
@@ -773,6 +788,7 @@
 				</div>
 			</div>
 			</div>
+			{/if}
 		</div>
 		<!-- Gap col 4 -->
 		<div></div>
