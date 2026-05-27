@@ -2,10 +2,14 @@ import { EventEmitter } from "events";
 
 export interface FacadeEvent {
 	type: "message" | "huddle_update";
+	id?: string;
 	conversationId?: string;
 	sender?: string;
 	content?: string;
 	timestamp?: string;
+	toolCall?: boolean;
+	response?: boolean;
+	summary?: string;
 }
 
 const emitter = new EventEmitter();

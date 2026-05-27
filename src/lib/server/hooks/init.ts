@@ -38,6 +38,10 @@ export async function initServer(): Promise<void> {
 	// Load MCP servers at startup
 	loadMcpServersOnStartup();
 
+	// Start harness reader — watches OpenCode SQLite DB for terminal chatter + tool calls
+	const { startHarnessReader } = await import("$lib/server/harness-reader");
+	startHarnessReader();
+
 	// Init AbortedGenerations refresh process
 	AbortedGenerations.getInstance();
 
