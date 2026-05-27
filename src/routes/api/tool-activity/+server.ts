@@ -32,10 +32,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	let activeRooms = getActiveRoomsForTeammate(sender);
-	if (isResponse) {
-		activeRooms = activeRooms.filter((r) => !r.startsWith("huddle-"));
-	}
+	const activeRooms = getActiveRoomsForTeammate(sender);
 	if (room && activeRooms.length === 0) activeRooms.push(room);
 
 	const createdAt = new Date().toISOString();
@@ -73,7 +70,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			summary: data.summary,
 		});
 
-		if (targetRoom.startsWith("huddle-")) {
+		if (targetRoom.startsWith("huddle-") && !isResponse) {
 			const kittyBody = isToolCall
 				? data.summary
 					? `[live-mirror] ${sender} ${data.summary}`
