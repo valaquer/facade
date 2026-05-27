@@ -14,22 +14,15 @@ export function advanceTokenAndNotify(roomId: string, releasedBy: string): strin
 	if (!result.startsWith("released:")) return null;
 
 	const next = result.replace("released: token advanced to ", "");
-	const members = getHuddleMembers(roomId);
 	const now = new Date().toISOString();
 
-	// Token notifications go to Kitty only — not saved or displayed in Facade (REQ-77)
-	for (const m of members) {
-		const body =
-			m === next
-				? "You have the token. Read before posting — don't repeat what is already said."
-				: `Token passed to ${next}.`;
-		sendToKitty(m, {
-			sender: "system",
-			room: roomId,
-			body,
-			timestamp: now,
-		}).catch(() => {});
-	}
+	// Only the recipient is notified — observers don't need to know (REQ-147)
+	sendToKitty(next, {
+		sender: "system",
+		room: roomId,
+		body: "You have the token. Read before posting — don't repeat what is already said.",
+		timestamp: now,
+	}).catch(() => {});
 
 	return next;
 }
@@ -71,21 +64,15 @@ export function startTokenTimer(roomId: string): void {
 export function forceAssignTokenAndNotify(roomId: string, targetName: string): void {
 	clearTokenTimer(roomId);
 	forceAssignToken(roomId, targetName);
-	const members = getHuddleMembers(roomId);
 	const now = new Date().toISOString();
 
-	for (const m of members) {
-		const body =
-			m === targetName
-				? "You have the token. Read before posting — don't repeat what is already said."
-				: `Token assigned to ${targetName}.`;
-		sendToKitty(m, {
-			sender: "system",
-			room: roomId,
-			body,
-			timestamp: now,
-		}).catch(() => {});
-	}
+	// Only the recipient is notified (REQ-147)
+	sendToKitty(targetName, {
+		sender: "system",
+		room: roomId,
+		body: "You have the token. Read before posting — don't repeat what is already said.",
+		timestamp: now,
+	}).catch(() => {});
 }
 
 export function clearTokenTimer(roomId: string): void {
