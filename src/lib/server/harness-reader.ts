@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import path from "path";
 import fs from "fs";
 import { emitEvent, type FacadeEvent } from "./events";
 import { getActiveRoomsForTeammate, getHuddleMembers } from "./facade-db";
@@ -116,7 +117,7 @@ function emitTextResponse(
 	}
 }
 
-let lastChecked = Date.now() - 5000;
+let lastChecked = 0;
 let watcherCleanup: (() => void) | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -193,8 +194,9 @@ export function startHarnessReader(): void {
 		return;
 	}
 	checkOpenCodeDb();
-	const watcher = fs.watch(OPENCODE_DB, (eventType) => {
-		if (eventType === "change") onDbChange();
+	const dbDir = path.dirname(OPENCODE_DB);
+	const watcher = fs.watch(dbDir, (eventType, filename) => {
+		if (filename && filename.includes("opencode")) onDbChange();
 	});
 	watcherCleanup = () => {
 		watcher.close();
@@ -207,7 +209,7 @@ export function startHarnessReader(): void {
 		} catch {
 			clearInterval(interval);
 		}
-	}, 5000);
+	}, 2000);
 	const origCleanup = watcherCleanup;
 	watcherCleanup = () => {
 		origCleanup();
