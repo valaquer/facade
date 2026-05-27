@@ -31,7 +31,7 @@ function getTeammateName(directory: string): string {
 function getActiveSessions(db: Database.Database): Map<string, string> {
 	const rows = db
 		.prepare(
-			"SELECT s.id, s.directory FROM session s WHERE s.directory LIKE '%/honeybloom/%' AND s.time_archived IS NULL ORDER BY s.time_created DESC"
+			"SELECT s.id, s.directory FROM session s WHERE s.directory LIKE '%/honeybloom/%' ORDER BY s.time_created DESC"
 		)
 		.all() as { id: string; directory: string }[];
 	const latest = new Map<string, string>();
