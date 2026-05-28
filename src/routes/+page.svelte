@@ -108,16 +108,29 @@
 			</div>`;
 		}
 
-		// Default — structured fields instead of raw JSON
+		// Default — render structured fields as key: value lines, not raw JSON
 		let inputHtml = "";
 		let outputHtml = "";
 		if (toolInput) {
-			const inputStr = typeof toolInput === "string" ? toolInput : JSON.stringify(toolInput, null, 2);
-			inputHtml = `<div style="${labelStyle}">Input:</div><pre style="${preStyle} margin-bottom: 0.75em;"><code>${escapeHtml(inputStr)}</code></pre>`;
+			const parsed = typeof toolInput === "string" ? tryParseJson(toolInput) : toolInput;
+			if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+				const lines = Object.entries(parsed)
+					.filter(([, v]) => v !== null && v !== undefined && v !== "")
+					.map(([k, v]) => {
+						const val = typeof v === "string" ? v : JSON.stringify(v);
+						const truncated = val.length > 300 ? val.substring(0, 300) + " ..." : val;
+						return `<div style="margin-bottom: 0.25em;"><span style="color: var(--color-text-muted);">${escapeHtml(k)}:</span> ${escapeHtml(truncated)}</div>`;
+					}).join("");
+				inputHtml = `<div style="font-family: var(--font-mono); font-size: 11px; line-height: 1.5; margin-bottom: 0.5em;">${lines}</div>`;
+			} else {
+				const inputStr = typeof toolInput === "string" ? toolInput : JSON.stringify(toolInput, null, 2);
+				inputHtml = `<div style="${labelStyle}">Input:</div><pre style="${preStyle} margin-bottom: 0.75em;"><code>${escapeHtml(inputStr)}</code></pre>`;
+			}
 		}
 		if (toolOutput) {
 			const output = typeof toolOutput === "string" ? toolOutput : JSON.stringify(toolOutput, null, 2);
-			outputHtml = `<div style="${labelStyle}">Output:</div><pre style="${preStyle}"><code>${escapeHtml(output)}</code></pre>`;
+			const truncated = output.length > 1000 ? output.substring(0, 1000) + "\n... [truncated]" : output;
+			outputHtml = `<div style="${labelStyle}">Output:</div><pre style="${preStyle}"><code>${escapeHtml(truncated)}</code></pre>`;
 		}
 		return `<div style="${cardStyle}">
 			<div style="${headerStyle}">
