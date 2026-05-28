@@ -101,17 +101,31 @@ function emitToolCall(
 	}
 }
 
-const JUNK_PHRASES = ["waiting", "standing by", "nothing to add", "released token", "holding"];
+const JUNK_PHRASES_FILE = "/Users/d.patnaik/honeybloom/library/facade/junk-phrases.md";
+let junkPhrases: string[] = [];
+try {
+	junkPhrases = fs
+		.readFileSync(JUNK_PHRASES_FILE, "utf-8")
+		.split("\n")
+		.map((l) =>
+			l
+				.trim()
+				.toLowerCase()
+				.replace(/[.!?…]+$/, "")
+		)
+		.filter((l) => l.length > 0);
+} catch {}
 
 function isJunkSentence(sentence: string): boolean {
-	const trimmed = sentence.trim().toLowerCase();
+	const trimmed = sentence
+		.trim()
+		.toLowerCase()
+		.replace(/[.!?…]+$/, "");
 	if (!trimmed) return true;
-	const wordCount = trimmed.split(/\s+/).length;
-	return wordCount <= 10 && JUNK_PHRASES.some((phrase) => trimmed.startsWith(phrase));
+	return junkPhrases.includes(trimmed);
 }
 
 function applyJunkFilter(text: string): string {
-	// Split into sentences on . or newline, preserving delimiters
 	const sentences = text.split(/(?<=\.)\s+|\n+/).filter((s) => s.trim());
 	const result = sentences.map((s) => (isJunkSentence(s) ? `🔸 ${s}` : s));
 	return result.join("\n");
