@@ -101,6 +101,21 @@ function emitToolCall(
 	}
 }
 
+const JUNK_PHRASES = ["waiting", "standing by", "nothing to add", "released token", "holding"];
+
+function isJunkSentence(sentence: string): boolean {
+	const trimmed = sentence.trim().toLowerCase();
+	if (!trimmed) return true;
+	return JUNK_PHRASES.some((phrase) => trimmed.startsWith(phrase));
+}
+
+function applyJunkFilter(text: string): string {
+	// Split into sentences on . or newline, preserving delimiters
+	const sentences = text.split(/(?<=\.)\s+|\n+/).filter((s) => s.trim());
+	const result = sentences.map((s) => (isJunkSentence(s) ? `🔸 ${s}` : s));
+	return result.join("\n");
+}
+
 function emitTextResponse(
 	part: Record<string, unknown>,
 	teammate: string,
@@ -109,9 +124,9 @@ function emitTextResponse(
 	const text = String(part.text || "");
 	if (!text.trim()) return;
 	const id = `harness-text-${teammate}-${createdAt}-${Math.random().toString(36).slice(2)}`;
-	let cleaned = redactCredentials(text);
-	const wordCount = cleaned.trim().split(/\s+/).length;
-	if (wordCount <= 10) cleaned = `🔸 ${cleaned}`;
+	const cleaned = redactCredentials(text);
+	const filtered = applyJunkFilter(cleaned);
+	if (!filtered.trim()) return;
 	const activeRooms = getActiveRoomsForTeammate(teammate);
 	for (const room of activeRooms) {
 		const roomId = `${id}-${room}`;
@@ -119,7 +134,7 @@ function emitTextResponse(
 			id: roomId,
 			conversationId: room,
 			sender: teammate,
-			content: cleaned,
+			content: filtered,
 			createdAt,
 			type: "response",
 		});
@@ -128,7 +143,7 @@ function emitTextResponse(
 			id: roomId,
 			conversationId: room,
 			sender: teammate,
-			content: cleaned,
+			content: filtered,
 			timestamp: createdAt,
 			response: true,
 		};
