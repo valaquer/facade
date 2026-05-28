@@ -96,19 +96,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 				required: ["sender", "roomId"],
 			},
 		},
-		{
-			name: "read_huddle",
-			description:
-				"Read the message history of a past huddle. Returns all messages from the huddle.",
-			inputSchema: {
-				type: "object",
-				properties: {
-					host: { type: "string", description: "Huddle host name (e.g. samara)" },
-					date: { type: "string", description: "Date in YYYYMMDD format (e.g. 20260517)" },
-				},
-				required: ["host"],
-			},
-		},
 	],
 }));
 
@@ -202,37 +189,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 					},
 				],
 			};
-		case "read_huddle": {
-			const params = new URLSearchParams({ host: args.host });
-			if (args.date) params.set("date", args.date);
-			try {
-				const res = await fetch(`${FACADE_URL}/api/huddle-history?${params}`);
-				if (!res.ok) {
-					const text = await res.text();
-					try {
-						const parsed = JSON.parse(text);
-						return { content: [{ type: "text", text: parsed.error || text }] };
-					} catch {
-						return { content: [{ type: "text", text }] };
-					}
-				}
-				const huddles = await res.json();
-				const formatted = huddles
-					.map((h) => {
-						const header = `--- ${h.roomId} (started ${h.startedAt}) ---`;
-						const msgs = h.messages
-							.map((m) => `[${m.createdAt}] ${m.sender}: ${m.content}`)
-							.join("\n");
-						return `${header}\n${msgs}`;
-					})
-					.join("\n\n");
-				return { content: [{ type: "text", text: formatted || "No messages found." }] };
-			} catch (err) {
-				return {
-					content: [{ type: "text", text: `Error: Facade is not responding at ${FACADE_URL}` }],
-				};
-			}
-		}
 		default:
 			throw new Error(`Unknown tool: ${request.params.name}`);
 	}
