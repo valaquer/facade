@@ -115,7 +115,11 @@ function emitTextResponse(
 	}
 }
 
-let lastChecked = Number(getHarnessState("opencode_last_checked") || "0");
+const _g = globalThis as Record<string, unknown>;
+let lastChecked: number =
+	typeof _g.__opencodeLastChecked === "number"
+		? _g.__opencodeLastChecked
+		: Number(getHarnessState("opencode_last_checked") || "0");
 let watcherCleanup: (() => void) | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -319,6 +323,7 @@ function checkOpenCodeDb(): void {
 			}
 		}
 		if (lastChecked > 0) {
+			(globalThis as Record<string, unknown>).__opencodeLastChecked = lastChecked;
 			setHarnessState("opencode_last_checked", String(lastChecked));
 		}
 	} catch (e) {
@@ -341,10 +346,19 @@ function onDbChange(): void {
 }
 
 export function startHarnessReader(): void {
+	// Process-level guard — prevent duplicate OpenCode readers from HMR re-imports
+	const g = globalThis as Record<string, unknown>;
+	if (g.__opencodeReaderActive) {
+		// Still start Claude reader if needed (has its own guard)
+		startClaudeCodeReader();
+		return;
+	}
+
 	if (watcherCleanup) return;
 
 	// OpenCode SQLite reader
 	if (fs.existsSync(OPENCODE_DB)) {
+		g.__opencodeReaderActive = true;
 		checkOpenCodeDb();
 		const dbDir = path.dirname(OPENCODE_DB);
 		const watcher = fs.watch(dbDir, (eventType, filename) => {
@@ -380,5 +394,6 @@ export function stopHarnessReader(): void {
 		watcherCleanup();
 		watcherCleanup = null;
 	}
+	(globalThis as Record<string, unknown>).__opencodeReaderActive = false;
 	stopClaudeCodeReader();
 }
