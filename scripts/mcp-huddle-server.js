@@ -2,6 +2,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { writeFileSync } from "fs";
 
 const FACADE_URL = process.env.FACADE_URL || "http://localhost:51730";
 
@@ -94,6 +95,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 					roomId: { type: "string", description: "Huddle room ID" },
 				},
 				required: ["sender", "roomId"],
+			},
+		},
+		{
+			name: "read_huddle",
+			description:
+				"Read the message history of a past huddle. Writes to a file and returns the path — use Read to view it.",
+			inputSchema: {
+				type: "object",
+				properties: {
+					host: { type: "string", description: "Huddle host name (e.g. samara)" },
+					date: { type: "string", description: "Date in YYYYMMDD format (e.g. 20260517)" },
+				},
+				required: ["host"],
 			},
 		},
 	],
@@ -189,6 +203,44 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 					},
 				],
 			};
+		case "read_huddle": {
+			const params = new URLSearchParams({ host: args.host });
+			if (args.date) params.set("date", args.date);
+			try {
+				const res = await fetch(`${FACADE_URL}/api/huddle-history?${params}`);
+				if (!res.ok) {
+					const text = await res.text();
+					try {
+						const parsed = JSON.parse(text);
+						return { content: [{ type: "text", text: parsed.error || text }] };
+					} catch {
+						return { content: [{ type: "text", text }] };
+					}
+				}
+				const huddles = await res.json();
+				const formatted = huddles
+					.map((h) => {
+						const header = `--- ${h.roomId} (started ${h.startedAt}) ---`;
+						const msgs = h.messages
+							.map((m) => `[${m.createdAt}] ${m.sender}: ${m.content}`)
+							.join("\n");
+						return `${header}\n${msgs}`;
+					})
+					.join("\n\n");
+				const roomId = huddles[0]?.roomId || "unknown";
+				const filePath = `/tmp/huddle-${roomId}.md`;
+				writeFileSync(filePath, formatted || "No messages found.");
+				return {
+					content: [
+						{ type: "text", text: `Huddle history written to ${filePath} — use Read to view it.` },
+					],
+				};
+			} catch (err) {
+				return {
+					content: [{ type: "text", text: `Error: Facade is not responding at ${FACADE_URL}` }],
+				};
+			}
+		}
 		default:
 			throw new Error(`Unknown tool: ${request.params.name}`);
 	}
