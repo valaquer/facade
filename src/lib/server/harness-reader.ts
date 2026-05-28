@@ -7,6 +7,7 @@ import {
 	getHuddleMembers,
 	getHarnessState,
 	setHarnessState,
+	saveMessage,
 } from "./facade-db";
 import { sendToKitty } from "./kitten";
 
@@ -111,9 +112,18 @@ function emitTextResponse(
 	const cleaned = redactCredentials(text);
 	const activeRooms = getActiveRoomsForTeammate(teammate);
 	for (const room of activeRooms) {
+		const roomId = `${id}-${room}`;
+		saveMessage({
+			id: roomId,
+			conversationId: room,
+			sender: teammate,
+			content: cleaned,
+			createdAt,
+			type: "response",
+		});
 		const event: FacadeEvent = {
 			type: "message" as const,
-			id,
+			id: roomId,
 			conversationId: room,
 			sender: teammate,
 			content: cleaned,
