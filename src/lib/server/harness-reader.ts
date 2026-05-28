@@ -6,6 +6,8 @@ import { getActiveRoomsForTeammate, getHuddleMembers } from "./facade-db";
 import { sendToKitty } from "./kitten";
 
 const OPENCODE_DB = "/Users/d.patnaik/.local/share/opencode/opencode.db";
+const CLAUDE_PROJECTS_DIR = "/Users/d.patnaik/.claude/projects";
+const CLAUDE_PROJECT_PREFIX = "-Users-d-patnaik-honeybloom-";
 
 const CREDENTIAL_PATTERNS = [
 	/auth\.json/,
@@ -98,7 +100,7 @@ function emitTextResponse(
 	teammate: string,
 	createdAt: string
 ): void {
-	const text = part.text || "";
+	const text = String(part.text || "");
 	if (!text.trim()) return;
 	const id = `harness-text-${teammate}-${createdAt}-${Math.random().toString(36).slice(2)}`;
 	const cleaned = redactCredentials(text);
@@ -120,6 +122,133 @@ function emitTextResponse(
 let lastChecked = 0;
 let watcherCleanup: (() => void) | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Claude Code JSONL reader state
+const jsonlOffsets = new Map<string, number>(); // filepath -> byte offset
+let claudeWatchers: fs.FSWatcher[] = [];
+const claudeDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function getActiveJsonlFile(projectDir: string): string | null {
+	try {
+		const files = fs
+			.readdirSync(projectDir)
+			.filter((f) => f.endsWith(".jsonl"))
+			.map((f) => ({
+				name: f,
+				mtime: fs.statSync(path.join(projectDir, f)).mtimeMs,
+			}))
+			.sort((a, b) => b.mtime - a.mtime);
+		return files.length > 0 ? path.join(projectDir, files[0].name) : null;
+	} catch {
+		return null;
+	}
+}
+
+function extractTeammateFromProjectDir(dirName: string): string {
+	if (dirName.startsWith(CLAUDE_PROJECT_PREFIX)) {
+		return dirName.slice(CLAUDE_PROJECT_PREFIX.length);
+	}
+	return "";
+}
+
+function checkClaudeJsonl(filePath: string, teammate: string): void {
+	try {
+		const stat = fs.statSync(filePath);
+		const offset = jsonlOffsets.get(filePath) || 0;
+		if (stat.size <= offset) return;
+
+		const fd = fs.openSync(filePath, "r");
+		const buf = Buffer.alloc(stat.size - offset);
+		fs.readSync(fd, buf, 0, buf.length, offset);
+		fs.closeSync(fd);
+		jsonlOffsets.set(filePath, stat.size);
+
+		const lines = buf
+			.toString("utf-8")
+			.split("\n")
+			.filter((l) => l.trim());
+		for (const line of lines) {
+			try {
+				const entry = JSON.parse(line);
+				if (entry.type !== "assistant") continue;
+				const message = entry.message;
+				if (!message?.content) continue;
+				const createdAt = entry.timestamp || new Date().toISOString();
+				for (const part of message.content) {
+					if (part.type === "text" && part.text?.trim()) {
+						emitTextResponse({ text: part.text }, teammate, createdAt);
+					}
+					// Skip tool_use — facade-relay.sh already covers tool activity for Claude Code
+				}
+			} catch {
+				// Skip malformed lines
+			}
+		}
+	} catch (e) {
+		console.error(`harness-reader: Claude JSONL read failed for ${teammate}`, e);
+	}
+}
+
+function onClaudeJsonlChange(projectDir: string, teammate: string): void {
+	const key = projectDir;
+	const existing = claudeDebounceTimers.get(key);
+	if (existing) clearTimeout(existing);
+	claudeDebounceTimers.set(
+		key,
+		setTimeout(() => {
+			const jsonlFile = getActiveJsonlFile(projectDir);
+			if (jsonlFile) checkClaudeJsonl(jsonlFile, teammate);
+			claudeDebounceTimers.delete(key);
+		}, 100)
+	);
+}
+
+function startClaudeCodeReader(): void {
+	if (!fs.existsSync(CLAUDE_PROJECTS_DIR)) {
+		console.error("harness-reader: Claude projects dir not found");
+		return;
+	}
+
+	const dirs = fs
+		.readdirSync(CLAUDE_PROJECTS_DIR)
+		.filter((d) => d.startsWith(CLAUDE_PROJECT_PREFIX));
+	console.log(`harness-reader: watching ${dirs.length} Claude Code project dirs`);
+
+	for (const dirName of dirs) {
+		const teammate = extractTeammateFromProjectDir(dirName);
+		if (!teammate) continue;
+		const projectDir = path.join(CLAUDE_PROJECTS_DIR, dirName);
+
+		// Set initial offset to current file size (don't replay history)
+		const jsonlFile = getActiveJsonlFile(projectDir);
+		if (jsonlFile) {
+			try {
+				jsonlOffsets.set(jsonlFile, fs.statSync(jsonlFile).size);
+			} catch {}
+		}
+
+		try {
+			const watcher = fs.watch(projectDir, (eventType, filename) => {
+				if (filename?.endsWith(".jsonl")) {
+					onClaudeJsonlChange(projectDir, teammate);
+				}
+			});
+			claudeWatchers.push(watcher);
+		} catch {}
+	}
+}
+
+function stopClaudeCodeReader(): void {
+	for (const w of claudeWatchers) {
+		try {
+			w.close();
+		} catch {}
+	}
+	claudeWatchers = [];
+	for (const t of claudeDebounceTimers.values()) clearTimeout(t);
+	claudeDebounceTimers.clear();
+	jsonlOffsets.clear();
+}
 
 function checkOpenCodeDb(): void {
 	let db: Database.Database | null = null;
@@ -189,32 +318,37 @@ function onDbChange(): void {
 
 export function startHarnessReader(): void {
 	if (watcherCleanup) return;
-	if (!fs.existsSync(OPENCODE_DB)) {
-		console.error("harness-reader: OpenCode DB not found at", OPENCODE_DB);
-		return;
-	}
-	checkOpenCodeDb();
-	const dbDir = path.dirname(OPENCODE_DB);
-	const watcher = fs.watch(dbDir, (eventType, filename) => {
-		if (filename && filename.includes("opencode")) onDbChange();
-	});
-	watcherCleanup = () => {
-		watcher.close();
-		if (debounceTimer) clearTimeout(debounceTimer);
-	};
-	const interval = setInterval(() => {
-		try {
-			fs.statSync(OPENCODE_DB);
-			onDbChange();
-		} catch {
+
+	// OpenCode SQLite reader
+	if (fs.existsSync(OPENCODE_DB)) {
+		checkOpenCodeDb();
+		const dbDir = path.dirname(OPENCODE_DB);
+		const watcher = fs.watch(dbDir, (eventType, filename) => {
+			if (filename && filename.includes("opencode")) onDbChange();
+		});
+		watcherCleanup = () => {
+			watcher.close();
+			if (debounceTimer) clearTimeout(debounceTimer);
+		};
+		const interval = setInterval(() => {
+			try {
+				fs.statSync(OPENCODE_DB);
+				onDbChange();
+			} catch {
+				clearInterval(interval);
+			}
+		}, 2000);
+		const origCleanup = watcherCleanup;
+		watcherCleanup = () => {
+			origCleanup();
 			clearInterval(interval);
-		}
-	}, 2000);
-	const origCleanup = watcherCleanup;
-	watcherCleanup = () => {
-		origCleanup();
-		clearInterval(interval);
-	};
+		};
+	} else {
+		watcherCleanup = () => {};
+	}
+
+	// Claude Code JSONL reader
+	startClaudeCodeReader();
 }
 
 export function stopHarnessReader(): void {
@@ -222,4 +356,5 @@ export function stopHarnessReader(): void {
 		watcherCleanup();
 		watcherCleanup = null;
 	}
+	stopClaudeCodeReader();
 }
