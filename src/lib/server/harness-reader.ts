@@ -210,6 +210,8 @@ function checkClaudeJsonl(filePath: string, teammate: string): void {
 				const createdAt = entry.timestamp || new Date().toISOString();
 				for (const part of message.content) {
 					if (part.type === "text" && part.text?.trim()) {
+						const trimmed = part.text.trimStart();
+						if (trimmed.startsWith("Human:") || trimmed.startsWith("<system-reminder>")) continue;
 						emitTextResponse({ text: part.text }, teammate, createdAt);
 					}
 					// Skip tool_use — facade-relay.sh already covers tool activity for Claude Code
