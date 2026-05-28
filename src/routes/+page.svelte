@@ -868,16 +868,20 @@
 	}
 	.bookmark-btn {
 		position: absolute;
-		top: 2rem;
-		right: -24px;
-		background: none;
+		top: calc(2rem - 6px);
+		right: 0;
+		background: #0b0d10;
 		border: none;
+		border-radius: 4px;
 		cursor: pointer;
 		font-size: 12px;
 		color: var(--color-text-muted);
 		opacity: 0;
 		transition: opacity 0.15s;
-		padding: 2px 4px;
+		padding: 8px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 	.bookmark-highlight {
 		animation: bm-pulse 2s ease-out;
