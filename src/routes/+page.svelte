@@ -91,7 +91,7 @@
 			</div>`;
 		}
 
-		// Bash tool — show command header + output
+		// Bash tool — show command header + output (with diff coloring if detected)
 		if (tool === "bash") {
 			const command = input?.command || "";
 			const description = input?.description || "";
@@ -104,7 +104,7 @@
 				</div>
 				${descHtml}
 				<pre style="${preStyle} margin-bottom: 0.5em; background: rgba(200,180,140,0.12); color: #c8b896;"><code>$ ${escapeHtml(command)}</code></pre>
-				${output ? `<pre style="${preStyle}"><code>${escapeHtml(output)}</code></pre>` : ""}
+				${output ? renderBashOutput(output) : ""}
 			</div>`;
 		}
 
@@ -140,6 +140,31 @@
 			${inputHtml}
 			${outputHtml}
 		</div>`;
+	}
+
+	function renderBashOutput(output: string): string {
+		const lines = output.split("\n");
+		const isDiff = lines.some(l => l.startsWith("diff --git ") || l.startsWith("@@"));
+		if (!isDiff) {
+			return `<pre style="background: var(--color-bg); padding: 0.5em; border-radius: 4px; white-space: pre-wrap; overflow-wrap: break-word; font-size: 11px; line-height: 1.5; margin: 0;"><code>${escapeHtml(output)}</code></pre>`;
+		}
+		const colored = lines.map(line => {
+			const escaped = escapeHtml(line);
+			if (line.startsWith("diff --git ") || line.startsWith("--- ") || line.startsWith("+++ ")) {
+				return `<div style="color: var(--color-text-muted); padding: 0 0.5em;">${escaped}</div>`;
+			}
+			if (line.startsWith("@@")) {
+				return `<div style="color: var(--color-text-muted); padding: 0 0.5em;">${escaped}</div>`;
+			}
+			if (line.startsWith("+")) {
+				return `<div style="background: rgba(60,140,80,0.12); color: #8abf8a; padding: 0 0.5em;">${escaped}</div>`;
+			}
+			if (line.startsWith("-")) {
+				return `<div style="background: rgba(180,60,60,0.12); color: #c9877a; padding: 0 0.5em;">${escaped}</div>`;
+			}
+			return `<div style="padding: 0 0.5em;">${escaped}</div>`;
+		}).join("");
+		return `<div style="font-family: var(--font-mono); font-size: 11px; line-height: 1.5; border-radius: 4px; overflow: hidden; background: var(--color-bg);">${colored}</div>`;
 	}
 
 	function tryParseJson(str: string): any {
