@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { marked } from 'marked';
 	import { onMount, onDestroy } from 'svelte';
+	import LucideBookmark from '~icons/lucide/bookmark';
+	import LucidePlay from '~icons/lucide/play';
+	import LucidePause from '~icons/lucide/pause';
+	import LucideSquare from '~icons/lucide/square';
+	import LucideX from '~icons/lucide/x';
+	import LucideRadio from '~icons/lucide/radio';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -130,6 +136,7 @@
 	let loadingRoom = $state("");
 	let pausing = $state(false);
 	let pauseError = $state(false);
+	let broadcastedMsgId = $state<string | null>(null);
 	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
 	// sidebarItems order is teammates → huddles → past rooms
 	// preBookmarkCount = index where past rooms start in sidebarItems
@@ -735,7 +742,7 @@
 								class="bookmark-btn"
 								onclick={() => toggleBookmark(msg)}
 								title="Bookmark this message"
-							><svg width="14" height="14" viewBox="0 0 24 24" fill={bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'} stroke={bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg></button>
+							><LucideBookmark width={14} height={14} style="color: {bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'}; fill: {bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'};" /></button>
 						</div>
 					{/each}
 				</div>
@@ -750,17 +757,17 @@
 					<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} title="Live mirror"></span>
 				<button class="control-btn" onclick={() => { if (pausedRoom !== selectedConvId) { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } else { stepOne(); } }} title={pausedRoom === selectedConvId ? ((messageQueues[selectedConvId]?.length ?? 0) > 0 ? "Next message" : "Paused") : "Pause"}>
 					{#if pausedRoom === selectedConvId}
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a5e4a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+						<LucidePlay width={14} height={14} style="color: #7a5e4a;" />
 						{#if (messageQueues[selectedConvId]?.length ?? 0) > 0}<span class="queue-badge">{messageQueues[selectedConvId]!.length}</span>{/if}
 					{:else}
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"></rect><rect x="6" y="4" width="4" height="16" rx="1"></rect></svg>
+						<LucidePause width={14} height={14} style="color: #555;" />
 					{/if}
 				</button>
 				<button class="control-btn" onclick={() => flushQueue()} title="Stop — catch up to latest">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill={pausedRoom === selectedConvId ? '#7a5e4a' : '#555'} stroke="none"><rect x="3" y="3" width="18" height="18" rx="2"></rect></svg>
+					<LucideSquare width={14} height={14} style="color: {pausedRoom === selectedConvId ? '#7a5e4a' : '#555'}; fill: {pausedRoom === selectedConvId ? '#7a5e4a' : '#555'};" />
 					</button>
 				<button class="control-btn" onclick={sendPauseMessage} disabled={pausing} title="Pause — alert room">
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={pauseError ? '#e74c3c' : '#555'} stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5l14 14M19 5l-14 14"></path></svg>
+					<LucideX width={18} height={18} style="color: {pauseError ? '#e74c3c' : '#555'};" />
 				</button>
 				</div>
 			</div>
@@ -814,18 +821,18 @@
 							<button
 								class="broadcast-btn"
 								title="Broadcast to all teammates"
-								onclick={async (e) => {
-									const svg = e.currentTarget.querySelector('svg');
+								onclick={async () => {
 									try {
 										await fetch('/api/broadcast', {
 											method: 'POST',
 											headers: { 'Content-Type': 'application/json' },
 											body: JSON.stringify({ sender: msg.sender, room: selectedConvId, content: msg.content }),
 										});
-										if (svg) { svg.setAttribute('stroke', '#7a5e4a'); setTimeout(() => svg.setAttribute('stroke', '#555'), 1500); }
+										broadcastedMsgId = msg.id;
+										setTimeout(() => { broadcastedMsgId = null; }, 1500);
 									} catch {}
 								}}
-							><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg></button>
+							><LucideRadio width={14} height={14} style="color: {broadcastedMsgId === msg.id ? '#7a5e4a' : '#555'};" /></button>
 							{/if}
 						</div>
 					{/each}
