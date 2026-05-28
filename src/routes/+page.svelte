@@ -800,7 +800,7 @@
 						<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
 							<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
 						</div>
-						<div style="padding-top: 2rem;">
+						<div class="activity-row" style="padding-top: 2rem; position: relative;">
 							<div style="border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : '2px solid transparent'}; padding-left: 1.5rem;">
 								{#if msg.toolCall}
 									{@html renderToolCard(msg.content)}
@@ -810,6 +810,23 @@
 									</div>
 								{/if}
 							</div>
+							{#if msg.response}
+							<button
+								class="broadcast-btn"
+								title="Broadcast to all teammates"
+								onclick={async (e) => {
+									const svg = e.currentTarget.querySelector('svg');
+									try {
+										await fetch('/api/broadcast', {
+											method: 'POST',
+											headers: { 'Content-Type': 'application/json' },
+											body: JSON.stringify({ sender: msg.sender, room: selectedConvId, content: msg.content }),
+										});
+										if (svg) { svg.setAttribute('stroke', '#7a5e4a'); setTimeout(() => svg.setAttribute('stroke', '#555'), 1500); }
+									} catch {}
+								}}
+							><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg></button>
+							{/if}
 						</div>
 					{/each}
 				</div>
@@ -867,6 +884,26 @@
 		opacity: 1 !important;
 	}
 	.bookmark-btn {
+		position: absolute;
+		top: calc(2rem - 6px);
+		right: 0;
+		background: #0b0d10;
+		border: none;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: 12px;
+		color: var(--color-text-muted);
+		opacity: 0;
+		transition: opacity 0.15s;
+		padding: 8px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.activity-row:hover .broadcast-btn {
+		opacity: 1 !important;
+	}
+	.broadcast-btn {
 		position: absolute;
 		top: calc(2rem - 6px);
 		right: 0;
