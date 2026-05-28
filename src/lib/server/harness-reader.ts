@@ -106,7 +106,8 @@ const JUNK_PHRASES = ["waiting", "standing by", "nothing to add", "released toke
 function isJunkSentence(sentence: string): boolean {
 	const trimmed = sentence.trim().toLowerCase();
 	if (!trimmed) return true;
-	return JUNK_PHRASES.some((phrase) => trimmed.startsWith(phrase));
+	const wordCount = trimmed.split(/\s+/).length;
+	return wordCount <= 10 && JUNK_PHRASES.some((phrase) => trimmed.startsWith(phrase));
 }
 
 function applyJunkFilter(text: string): string {
