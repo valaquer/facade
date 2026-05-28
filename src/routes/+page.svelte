@@ -926,8 +926,10 @@
 							{#if msg.response}
 							<button
 								class="broadcast-btn"
-								title="Broadcast to all teammates"
+								disabled={broadcastedMsgId === msg.id}
+								title="Promote to chat"
 								onclick={async () => {
+									if (broadcastedMsgId === msg.id) return;
 									try {
 										await fetch('/api/broadcast', {
 											method: 'POST',
@@ -935,7 +937,6 @@
 											body: JSON.stringify({ sender: msg.sender, room: selectedConvId, content: msg.content }),
 										});
 										broadcastedMsgId = msg.id;
-										setTimeout(() => { broadcastedMsgId = null; }, 1500);
 									} catch {}
 								}}
 							><LucideRadio width={14} height={14} style="color: {broadcastedMsgId === msg.id ? '#7a5e4a' : '#555'};" /></button>
