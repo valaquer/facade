@@ -76,7 +76,7 @@ function isJunkSentence(sentence: string): boolean {
 
 function applyJunkFilter(text: string): string {
 	const sentences = text.split(/(?<=\.)\s+|\n+/).filter((s) => s.trim());
-	const result = sentences.map((s) => (isJunkSentence(s) ? `🔸 ${s}` : s));
+	const result = sentences.filter((s) => !isJunkSentence(s));
 	return result.join("\n");
 }
 
