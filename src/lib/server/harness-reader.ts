@@ -4,12 +4,10 @@ import fs from "fs";
 import { emitEvent, type FacadeEvent } from "./events";
 import {
 	getActiveRoomsForTeammate,
-	getHuddleMembers,
 	getHarnessState,
 	setHarnessState,
 	saveMessage,
 } from "./facade-db";
-import { sendToKitty } from "./kitten";
 
 const OPENCODE_DB = "/Users/d.patnaik/.local/share/opencode/opencode.db";
 const CLAUDE_PROJECTS_DIR = "/Users/d.patnaik/.claude/projects";
@@ -50,55 +48,6 @@ function getActiveSessions(db: Database.Database): Map<string, string> {
 		}
 	}
 	return latest;
-}
-
-function emitToolCall(
-	part: Record<string, unknown>,
-	sessionId: string,
-	teammate: string,
-	createdAt: string
-): void {
-	const toolInput = part.state?.input ? JSON.stringify(part.state.input) : "";
-	const toolOutput = part.state?.output ? redactCredentials(String(part.state.output)) : "";
-	const summary = part.state?.metadata?.description || part.tool || "";
-	const content = JSON.stringify({
-		toolName: part.tool,
-		toolInput,
-		toolOutput,
-		status: part.state?.status || "unknown",
-		summary,
-	});
-	const id = `harness-${teammate}-${createdAt}-${part.callID || part.id || Math.random().toString(36).slice(2)}`;
-	const activeRooms = getActiveRoomsForTeammate(teammate);
-	for (const room of activeRooms) {
-		const event: FacadeEvent = {
-			type: "message" as const,
-			id,
-			conversationId: room,
-			sender: teammate,
-			content,
-			timestamp: createdAt,
-			toolCall: true,
-			summary,
-		};
-		emitEvent(event);
-		if (room.startsWith("huddle-")) {
-			const kittyBody = summary
-				? `[live-mirror] ${teammate} ${summary}`
-				: `[live-mirror] ${teammate} used ${part.tool}\nInput: ${toolInput}\nOutput: ${toolOutput || "(none)"}\nStatus: ${part.state?.status || "unknown"}`;
-			const members = getHuddleMembers(room);
-			for (const m of members) {
-				if (m !== teammate) {
-					sendToKitty(m, {
-						sender: "system",
-						room,
-						body: kittyBody,
-						timestamp: createdAt,
-					}).catch(() => {});
-				}
-			}
-		}
-	}
 }
 
 const JUNK_PHRASES_FILE = "/Users/d.patnaik/honeybloom/library/facade/junk-phrases.md";
@@ -360,15 +309,11 @@ function checkOpenCodeDb(): void {
 		for (const part of parts) {
 			const parsed = JSON.parse(part.data);
 			const type = parsed.type;
-			if (type !== "tool" && type !== "text") continue;
-			if (type === "text" && part.role !== "assistant") continue;
+			if (type !== "text") continue;
+			if (part.role !== "assistant") continue;
 			const teammate = teammateNames.get(part.session_id) || "unknown";
 			const createdAt = new Date(part.time_created).toISOString();
-			if (type === "tool") {
-				emitToolCall(parsed, part.session_id, teammate, createdAt);
-			} else if (type === "text") {
-				emitTextResponse(parsed, teammate, createdAt);
-			}
+			emitTextResponse(parsed, teammate, createdAt);
 			if (part.time_created > lastChecked) {
 				lastChecked = part.time_created;
 			}
