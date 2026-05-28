@@ -157,11 +157,15 @@ function checkClaudeJsonl(filePath: string, teammate: string): void {
 		const offset = jsonlOffsets.get(filePath) || 0;
 		if (stat.size <= offset) return;
 
+		// Atomically claim the new bytes BEFORE reading — prevents duplicate reads
+		// when multiple watchers (or HMR reloads) fire simultaneously
+		const claimedSize = stat.size;
+		jsonlOffsets.set(filePath, claimedSize);
+
 		const fd = fs.openSync(filePath, "r");
-		const buf = Buffer.alloc(stat.size - offset);
+		const buf = Buffer.alloc(claimedSize - offset);
 		fs.readSync(fd, buf, 0, buf.length, offset);
 		fs.closeSync(fd);
-		jsonlOffsets.set(filePath, stat.size);
 
 		const lines = buf
 			.toString("utf-8")
@@ -204,8 +208,15 @@ function onClaudeJsonlChange(projectDir: string, teammate: string): void {
 }
 
 function startClaudeCodeReader(): void {
+	// Process-level guard — Vite HMR re-imports this module, creating duplicate watchers.
+	// Use a global flag to ensure only one set of watchers exists.
+	const g = globalThis as Record<string, unknown>;
+	if (g.__claudeReaderActive) return;
+	g.__claudeReaderActive = true;
+
 	if (!fs.existsSync(CLAUDE_PROJECTS_DIR)) {
 		console.error("harness-reader: Claude projects dir not found");
+		g.__claudeReaderActive = false;
 		return;
 	}
 
@@ -248,6 +259,7 @@ function stopClaudeCodeReader(): void {
 	for (const t of claudeDebounceTimers.values()) clearTimeout(t);
 	claudeDebounceTimers.clear();
 	jsonlOffsets.clear();
+	(globalThis as Record<string, unknown>).__claudeReaderActive = false;
 }
 
 function checkOpenCodeDb(): void {
