@@ -2,7 +2,12 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import { emitEvent, type FacadeEvent } from "./events";
-import { getActiveRoomsForTeammate, getHuddleMembers } from "./facade-db";
+import {
+	getActiveRoomsForTeammate,
+	getHuddleMembers,
+	getHarnessState,
+	setHarnessState,
+} from "./facade-db";
 import { sendToKitty } from "./kitten";
 
 const OPENCODE_DB = "/Users/d.patnaik/.local/share/opencode/opencode.db";
@@ -119,14 +124,26 @@ function emitTextResponse(
 	}
 }
 
-let lastChecked = 0;
+let lastChecked = Number(getHarnessState("opencode_last_checked") || "0");
 let watcherCleanup: (() => void) | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Claude Code JSONL reader state — offsets stored on globalThis to survive Vite HMR
-const g = globalThis as Record<string, unknown>;
-if (!g.__claudeJsonlOffsets) g.__claudeJsonlOffsets = new Map<string, number>();
-const jsonlOffsets = g.__claudeJsonlOffsets as Map<string, number>;
+// Claude Code JSONL reader state — offsets persisted in Facade DB
+const jsonlOffsets = new Map<string, number>();
+// Load persisted offsets from DB on module init
+try {
+	const stored = getHarnessState("jsonl_offsets");
+	if (stored) {
+		const parsed = JSON.parse(stored) as Record<string, number>;
+		for (const [k, v] of Object.entries(parsed)) jsonlOffsets.set(k, v);
+	}
+} catch {}
+
+function persistJsonlOffsets(): void {
+	const obj: Record<string, number> = {};
+	for (const [k, v] of jsonlOffsets) obj[k] = v;
+	setHarnessState("jsonl_offsets", JSON.stringify(obj));
+}
 let claudeWatchers: fs.FSWatcher[] = [];
 const claudeDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -163,6 +180,7 @@ function checkClaudeJsonl(filePath: string, teammate: string): void {
 		// when multiple watchers (or HMR reloads) fire simultaneously
 		const claimedSize = stat.size;
 		jsonlOffsets.set(filePath, claimedSize);
+		persistJsonlOffsets();
 
 		const fd = fs.openSync(filePath, "r");
 		const buf = Buffer.alloc(claimedSize - offset);
@@ -210,8 +228,7 @@ function onClaudeJsonlChange(projectDir: string, teammate: string): void {
 }
 
 function startClaudeCodeReader(): void {
-	// Process-level guard — Vite HMR re-imports this module, creating duplicate watchers.
-	// Use a global flag to ensure only one set of watchers exists.
+	// Process-level guard — prevent duplicate watchers from HMR re-imports
 	const g = globalThis as Record<string, unknown>;
 	if (g.__claudeReaderActive) return;
 	g.__claudeReaderActive = true;
@@ -232,11 +249,13 @@ function startClaudeCodeReader(): void {
 		if (!teammate) continue;
 		const projectDir = path.join(CLAUDE_PROJECTS_DIR, dirName);
 
-		// Set initial offset to current file size (don't replay history)
+		// Set initial offset to current file size ONLY if no DB-persisted offset exists
 		const jsonlFile = getActiveJsonlFile(projectDir);
-		if (jsonlFile) {
+		if (jsonlFile && !jsonlOffsets.has(jsonlFile)) {
 			try {
-				jsonlOffsets.set(jsonlFile, fs.statSync(jsonlFile).size);
+				const size = fs.statSync(jsonlFile).size;
+				jsonlOffsets.set(jsonlFile, size);
+				persistJsonlOffsets();
 			} catch {}
 		}
 
@@ -260,7 +279,6 @@ function stopClaudeCodeReader(): void {
 	claudeWatchers = [];
 	for (const t of claudeDebounceTimers.values()) clearTimeout(t);
 	claudeDebounceTimers.clear();
-	jsonlOffsets.clear();
 	(globalThis as Record<string, unknown>).__claudeReaderActive = false;
 }
 
@@ -310,6 +328,9 @@ function checkOpenCodeDb(): void {
 			if (part.time_created > lastChecked) {
 				lastChecked = part.time_created;
 			}
+		}
+		if (lastChecked > 0) {
+			setHarnessState("opencode_last_checked", String(lastChecked));
 		}
 	} catch (e) {
 		console.error("harness-reader: OpenCode query failed", e);

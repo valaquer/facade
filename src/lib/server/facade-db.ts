@@ -90,6 +90,25 @@ export function initDb(): void {
 			createdAt TEXT NOT NULL
 		)
 	`);
+	db.exec(`
+		CREATE TABLE IF NOT EXISTS harness_state (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL
+		)
+	`);
+}
+
+export function getHarnessState(key: string): string | null {
+	initDb();
+	const row = db.prepare("SELECT value FROM harness_state WHERE key = ?").get(key) as
+		| { value: string }
+		| undefined;
+	return row?.value ?? null;
+}
+
+export function setHarnessState(key: string, value: string): void {
+	initDb();
+	db.prepare("INSERT OR REPLACE INTO harness_state (key, value) VALUES (?, ?)").run(key, value);
 }
 
 export function saveMessage(msg: StoredMessage): void {
