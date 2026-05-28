@@ -32,8 +32,8 @@
 		let data: any;
 		try { data = JSON.parse(content); } catch { return renderMd(content); }
 		const { toolName, toolInput, toolOutput, status, summary } = data;
-		const statusIcon = status === "success" ? "✓" : "✗";
-		const statusColor = status === "success" ? "#4ade80" : "#f87171";
+		const statusIcon = status === "error" ? "✗" : status === "success" ? "✓" : "";
+		const statusColor = status === "error" ? "#f87171" : status === "success" ? "#4ade80" : "transparent";
 		const headerStyle = "display: flex; align-items: center; gap: 0.5em; margin-bottom: 0.5em; padding-bottom: 0.5em; border-bottom: 1px solid var(--color-bg-step4);";
 		const cardStyle = "background: var(--color-bg-panel); border-radius: 4px; padding: 0.75em; margin-bottom: 0.5em;";
 		const preStyle = "background: var(--color-bg); padding: 0.5em; border-radius: 4px; white-space: pre-wrap; overflow-wrap: break-word; font-size: 11px; line-height: 1.5; margin: 0;";
