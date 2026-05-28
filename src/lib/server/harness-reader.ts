@@ -123,8 +123,10 @@ let lastChecked = 0;
 let watcherCleanup: (() => void) | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Claude Code JSONL reader state
-const jsonlOffsets = new Map<string, number>(); // filepath -> byte offset
+// Claude Code JSONL reader state — offsets stored on globalThis to survive Vite HMR
+const g = globalThis as Record<string, unknown>;
+if (!g.__claudeJsonlOffsets) g.__claudeJsonlOffsets = new Map<string, number>();
+const jsonlOffsets = g.__claudeJsonlOffsets as Map<string, number>;
 let claudeWatchers: fs.FSWatcher[] = [];
 const claudeDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
