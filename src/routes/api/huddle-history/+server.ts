@@ -22,7 +22,9 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	const results = matchingRooms.map((room) => {
-		const messages = getMessages(room.id);
+		const messages = getMessages(room.id).filter(
+			(m) => m.type !== "tool_call" && m.type !== "response"
+		);
 		return {
 			roomId: room.id,
 			host: room.name,
