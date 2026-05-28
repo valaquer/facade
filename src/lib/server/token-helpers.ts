@@ -1,10 +1,4 @@
-import {
-	releaseToken,
-	clearAllTokens,
-	getTokenHolder,
-	getHuddleMembers,
-	forceAssignToken,
-} from "./facade-db";
+import { releaseToken, clearAllTokens, getTokenHolder, forceAssignToken } from "./facade-db";
 import { sendToKitty } from "./kitten";
 
 const tokenTimers = new Map<string, NodeJS.Timeout>();
@@ -29,20 +23,6 @@ export function advanceTokenAndNotify(roomId: string, releasedBy: string): strin
 
 export function clearTokensAndNotify(roomId: string): void {
 	clearAllTokens(roomId);
-	const members = getHuddleMembers(roomId);
-	const now = new Date().toISOString();
-
-	const content = "Token available, if you wish to speak.";
-
-	// Token notifications go to Kitty only — not saved or displayed in Facade (REQ-77)
-	for (const m of members) {
-		sendToKitty(m, {
-			sender: "system",
-			room: roomId,
-			body: content,
-			timestamp: now,
-		}).catch(() => {});
-	}
 }
 
 export function startTokenTimer(roomId: string): void {
