@@ -109,7 +109,9 @@ function emitTextResponse(
 	const text = String(part.text || "");
 	if (!text.trim()) return;
 	const id = `harness-text-${teammate}-${createdAt}-${Math.random().toString(36).slice(2)}`;
-	const cleaned = redactCredentials(text);
+	let cleaned = redactCredentials(text);
+	const wordCount = cleaned.trim().split(/\s+/).length;
+	if (wordCount <= 10) cleaned = `🔸 ${cleaned}`;
 	const activeRooms = getActiveRoomsForTeammate(teammate);
 	for (const room of activeRooms) {
 		const roomId = `${id}-${room}`;
