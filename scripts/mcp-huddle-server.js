@@ -86,7 +86,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 			},
 		},
 		{
-			name: "read_huddle",
+			name: "read_past_huddle",
 			description:
 				"Read the message history of a past huddle when requested to do so by Boss. Writes to a file and returns the path - use Read to view it.",
 			inputSchema: {
@@ -96,6 +96,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 					date: { type: "string", description: "Date in YYYYMMDD format (e.g. 20260517)" },
 				},
 				required: ["host"],
+			},
+		},
+		{
+			name: "read_this_huddle",
+			description:
+				"Get caught up on the huddle you have just been invited into. Writes to a file - use Read to view it.",
+			inputSchema: {
+				type: "object",
+				properties: {
+					roomId: {
+						type: "string",
+						description:
+							"The huddle room ID from the add notification (e.g. huddle-rio-20260529-053501)",
+					},
+				},
+				required: ["roomId"],
 			},
 		},
 	],
@@ -182,7 +198,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 					},
 				],
 			};
-		case "read_huddle": {
+		case "read_past_huddle": {
 			const params = new URLSearchParams({ host: args.host });
 			if (args.date) params.set("date", args.date);
 			try {
@@ -209,6 +225,42 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 				const roomId = huddles[0]?.roomId || "unknown";
 				const filePath = `/tmp/huddle-${roomId}.md`;
 				writeFileSync(filePath, formatted || "No messages found.");
+				return {
+					content: [
+						{ type: "text", text: `Huddle history written to ${filePath} — use Read to view it.` },
+					],
+				};
+			} catch (err) {
+				return {
+					content: [{ type: "text", text: `Error: Facade is not responding at ${FACADE_URL}` }],
+				};
+			}
+		}
+		case "read_this_huddle": {
+			try {
+				const params = new URLSearchParams({ roomId: args.roomId });
+				const res = await fetch(`${FACADE_URL}/api/huddle-history?${params}`);
+				if (!res.ok) {
+					const text = await res.text();
+					try {
+						const parsed = JSON.parse(text);
+						return { content: [{ type: "text", text: parsed.error || text }] };
+					} catch {
+						return { content: [{ type: "text", text }] };
+					}
+				}
+				const huddles = await res.json();
+				const formatted = huddles
+					.map((h) => {
+						const header = `--- ${h.roomId} (started ${h.startedAt}) ---`;
+						const msgs = h.messages
+							.map((m) => `[${m.createdAt}] ${m.sender}: ${m.content}`)
+							.join("\n");
+						return `${header}\n${msgs}`;
+					})
+					.join("\n\n");
+				const filePath = `/tmp/huddle-${args.roomId}.md`;
+				writeFileSync(filePath, formatted || "No messages found for this room.");
 				return {
 					content: [
 						{ type: "text", text: `Huddle history written to ${filePath} — use Read to view it.` },
