@@ -7,7 +7,6 @@ import {
 	getRoom,
 	formatTimestamp,
 	requestToken,
-	releaseToken,
 	initHuddleToken,
 	resolveActiveRoom,
 } from "$lib/server/facade-db";
@@ -301,20 +300,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 		const result = requestToken(sender.toLowerCase(), roomId);
 		if (result.startsWith("granted")) {
-			startTokenTimer(roomId);
-		}
-		return new Response(JSON.stringify({ result }), {
-			headers: { "Content-Type": "application/json" },
-		});
-	}
-
-	if (action === "release") {
-		if (!sender || !roomId) {
-			return new Response(JSON.stringify({ error: "Missing sender or roomId" }), { status: 400 });
-		}
-		clearTokenTimer(roomId);
-		const result = releaseToken(roomId, sender.toLowerCase());
-		if (result.startsWith("released:")) {
 			startTokenTimer(roomId);
 		}
 		return new Response(JSON.stringify({ result }), {

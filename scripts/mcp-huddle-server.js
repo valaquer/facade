@@ -86,21 +86,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 			},
 		},
 		{
-			name: "release_token",
-			description: "Release the speaking token or remove yourself from the queue.",
-			inputSchema: {
-				type: "object",
-				properties: {
-					sender: { type: "string", description: "Your teammate name" },
-					roomId: { type: "string", description: "Huddle room ID" },
-				},
-				required: ["sender", "roomId"],
-			},
-		},
-		{
 			name: "read_huddle",
 			description:
-				"Read the message history of a past huddle. Writes to a file and returns the path — use Read to view it.",
+				"Read the message history of a past huddle when requested to do so by Boss. Writes to a file and returns the path - use Read to view it.",
 			inputSchema: {
 				type: "object",
 				properties: {
@@ -191,15 +179,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 					{
 						type: "text",
 						text: await callFacadeToken("request", { sender: args.sender, roomId: args.roomId }),
-					},
-				],
-			};
-		case "release_token":
-			return {
-				content: [
-					{
-						type: "text",
-						text: await callFacadeToken("release", { sender: args.sender, roomId: args.roomId }),
 					},
 				],
 			};
