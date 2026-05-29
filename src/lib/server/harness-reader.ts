@@ -51,32 +51,37 @@ function getActiveSessions(db: Database.Database): Map<string, string> {
 }
 
 const JUNK_PHRASES_FILE = "/Users/d.patnaik/honeybloom/library/facade/junk-phrases.md";
-let junkPhrases: string[] = [];
-try {
-	junkPhrases = fs
-		.readFileSync(JUNK_PHRASES_FILE, "utf-8")
-		.split("\n")
-		.map((l) =>
-			l
-				.trim()
-				.toLowerCase()
-				.replace(/[.!?…]+$/, "")
-		)
-		.filter((l) => l.length > 0);
-} catch {}
 
-function isJunkSentence(sentence: string): boolean {
+function loadJunkPhrases(): string[] {
+	try {
+		return fs
+			.readFileSync(JUNK_PHRASES_FILE, "utf-8")
+			.split("\n")
+			.map((l) =>
+				l
+					.trim()
+					.toLowerCase()
+					.replace(/[.!?…]+$/, "")
+			)
+			.filter((l) => l.length > 0);
+	} catch {
+		return [];
+	}
+}
+
+function isJunkSentence(sentence: string, phrases: string[]): boolean {
 	const trimmed = sentence
 		.trim()
 		.toLowerCase()
 		.replace(/[.!?…]+$/, "");
 	if (!trimmed) return true;
-	return junkPhrases.includes(trimmed);
+	return phrases.includes(trimmed);
 }
 
 function applyJunkFilter(text: string): string {
+	const phrases = loadJunkPhrases();
 	const sentences = text.split(/(?<=\.)\s+|\n+/).filter((s) => s.trim());
-	const result = sentences.filter((s) => !isJunkSentence(s));
+	const result = sentences.filter((s) => !isJunkSentence(s, phrases));
 	return result.join("\n");
 }
 
