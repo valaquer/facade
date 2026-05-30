@@ -87,6 +87,26 @@ function isJunkSentence(sentence: string, phrases: { exact: string[]; prefix: st
 	return false;
 }
 
+const ACTIVITY_MUTE_FILE = "/Users/d.patnaik/honeybloom/library/facade/activity-mute.md";
+
+export function isActivityMuted(sender: string, room: string): boolean {
+	try {
+		const lines = fs
+			.readFileSync(ACTIVITY_MUTE_FILE, "utf-8")
+			.split("\n")
+			.map((l) => l.trim().toLowerCase())
+			.filter((l) => l.length > 0 && l.includes(":"));
+		const s = sender.toLowerCase();
+		const r = room.toLowerCase();
+		return lines.some((line) => {
+			const [mutedSender, mutedRoom] = line.split(":", 2);
+			return s === mutedSender && r.startsWith(mutedRoom);
+		});
+	} catch {
+		return false;
+	}
+}
+
 function applyJunkFilter(text: string): string {
 	const phrases = loadJunkPhrases();
 	const sentences = text.split(/(?<=\.)\s+|\n+/).filter((s) => s.trim());
@@ -107,6 +127,7 @@ function emitTextResponse(
 	if (!filtered.trim()) return;
 	const activeRooms = getActiveRoomsForTeammate(teammate);
 	for (const room of activeRooms) {
+		if (isActivityMuted(teammate, room)) continue;
 		const roomId = `${id}-${room}`;
 		saveMessage({
 			id: roomId,
