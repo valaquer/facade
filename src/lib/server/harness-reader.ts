@@ -52,30 +52,39 @@ function getActiveSessions(db: Database.Database): Map<string, string> {
 
 const JUNK_PHRASES_FILE = "/Users/d.patnaik/honeybloom/library/facade/junk-phrases.md";
 
-function loadJunkPhrases(): string[] {
+function loadJunkPhrases(): { exact: string[]; prefix: string[] } {
 	try {
-		return fs
+		const lines = fs
 			.readFileSync(JUNK_PHRASES_FILE, "utf-8")
 			.split("\n")
-			.map((l) =>
-				l
-					.trim()
-					.toLowerCase()
-					.replace(/[.!?…]+$/, "")
-			)
+			.map((l) => l.trim().toLowerCase())
 			.filter((l) => l.length > 0);
+		const exact: string[] = [];
+		const prefix: string[] = [];
+		for (const line of lines) {
+			if (line.endsWith("...")) {
+				prefix.push(line.slice(0, -3).replace(/[.!?…]+$/, ""));
+			} else {
+				exact.push(line.replace(/[.!?…]+$/, ""));
+			}
+		}
+		return { exact, prefix };
 	} catch {
-		return [];
+		return { exact: [], prefix: [] };
 	}
 }
 
-function isJunkSentence(sentence: string, phrases: string[]): boolean {
+function isJunkSentence(sentence: string, phrases: { exact: string[]; prefix: string[] }): boolean {
 	const trimmed = sentence
 		.trim()
 		.toLowerCase()
 		.replace(/[.!?…]+$/, "");
 	if (!trimmed) return true;
-	return phrases.includes(trimmed);
+	if (phrases.exact.includes(trimmed)) return true;
+	for (const p of phrases.prefix) {
+		if (trimmed.startsWith(p)) return true;
+	}
+	return false;
 }
 
 function applyJunkFilter(text: string): string {
