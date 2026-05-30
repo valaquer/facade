@@ -62,12 +62,16 @@ export function sendToKitty(
 			return;
 		}
 
+		const replyRoom =
+			payload.room.startsWith("direct-") && payload.sender !== "boss"
+				? `direct-${payload.sender.toLowerCase()}`
+				: payload.room;
 		const text = [
 			`sender: ${payload.sender}`,
 			`room: ${payload.room}`,
 			`timestamp: ${payload.timestamp}`,
 			`body: "${payload.body}"`,
-			`---\nReply to: ${payload.room}`,
+			`---\nReply to: ${replyRoom}`,
 		].join("\n");
 
 		try {
