@@ -346,7 +346,7 @@
 			const res = await fetch("/api/message", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ sender: "boss", room: selectedConvId, body: "Pause. Boss has questions." }),
+				body: JSON.stringify({ sender: "boss", room: selectedConvId, body: "Everybody, pause." }),
 			});
 			if (!res.ok) throw new Error();
 		} catch {
