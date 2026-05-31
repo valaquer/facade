@@ -11,7 +11,7 @@ import {
 	resolveActiveRoom,
 } from "$lib/server/facade-db";
 import { emitEvent } from "$lib/server/events";
-import { sendToKitty } from "$lib/server/kitten";
+import { sendToKitty, isTabAlive } from "$lib/server/kitten";
 import { endHuddle } from "$lib/server/huddle-helpers";
 import { startTokenTimer, clearTokenTimer, advanceTokenAndNotify } from "$lib/server/token-helpers";
 import { exec } from "node:child_process";
@@ -20,21 +20,6 @@ import { v4 } from "uuid";
 
 const execAsync = promisify(exec);
 
-async function tabExists(name: string): Promise<boolean> {
-	try {
-		const { stdout } = await execAsync("kitten @ ls", { timeout: 5000 });
-		const data = JSON.parse(stdout);
-		for (const osWin of data) {
-			for (const tab of osWin.tabs || []) {
-				for (const window of tab.windows || []) {
-					if (window.user_vars?.teammate === name) return true;
-				}
-			}
-		}
-	} catch {}
-	return false;
-}
-
 async function autoWake(name: string): Promise<string> {
 	try {
 		await execAsync(
@@ -42,11 +27,11 @@ async function autoWake(name: string): Promise<string> {
 			{ timeout: 15000 }
 		);
 		for (let i = 0; i < 60; i++) {
-			if (await tabExists(name)) return "ready";
+			if (await isTabAlive(name)) return "ready";
 			await new Promise((r) => setTimeout(r, 500));
 		}
 		await new Promise((r) => setTimeout(r, 30000));
-		if (await tabExists(name)) return "ready";
+		if (await isTabAlive(name)) return "ready";
 		return "wake_failed";
 	} catch {
 		return "wake_failed";
@@ -54,7 +39,7 @@ async function autoWake(name: string): Promise<string> {
 }
 
 async function ensureTabOpen(name: string): Promise<string> {
-	const exists = await tabExists(name);
+	const exists = await isTabAlive(name);
 	if (!exists) return await autoWake(name);
 	return "already_open";
 }
