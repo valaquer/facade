@@ -748,10 +748,9 @@
 						class="teammate-row"
 						data-nav-idx={sidebarItems.indexOf(item)}
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-						style="padding: 0.15rem 1rem 0.4rem 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
 					>
-						<div>{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
-						{#if item.model}<div style="font-size: 9px; line-height: 1.4; color: #666;">{item.model}</div>{/if}
+						<div>{fmt.label} {#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if} {#if item.model} <span style="font-size: 9px; color: #666; font-family: Menlo, monospace; font-weight: bold;">{item.model}</span>{/if}</div>
 						<button
 							class="dismiss-btn"
 							onclick={(e) => { e.stopPropagation(); dismissTeammate(fmt.label); }}
