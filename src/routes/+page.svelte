@@ -7,6 +7,8 @@
 	import LucideSquare from '~icons/lucide/square';
 	import LucideX from '~icons/lucide/x';
 	import LucideRadio from '~icons/lucide/radio';
+	import LucideMessageSquareOff from '~icons/lucide/message-square-off';
+	import LucideVolumeX from '~icons/lucide/volume-x';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -235,6 +237,7 @@
 	let eventSource: EventSource | undefined;
 	let messagesContainer: HTMLElement | undefined = $state();
 	let liveMirrorActive = $state(false);
+	let mutedEntries = $state<{sender: string, room: string}[]>([]);
 	let pausedRoom = $state<string | null>(null);
 	let queuedMessageIds = $state<string[]>([]);
 	let messageQueues = $state<Record<string, ChatMsg[]>>({});
@@ -243,6 +246,11 @@
 	let pausing = $state(false);
 	let pauseError = $state(false);
 	let broadcastedMsgId = $state<string | null>(null);
+	function isMutedInRoom(participant: string, roomId: string): boolean {
+		const p = participant.toLowerCase();
+		const r = roomId.toLowerCase();
+		return mutedEntries.some(e => p === e.sender && r.startsWith(e.room));
+	}
 	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
 	// sidebarItems order is teammates → huddles → past rooms
 	// preBookmarkCount = index where past rooms start in sidebarItems
@@ -465,6 +473,7 @@
 		Promise.all([
 			loadSidebar(),
 			fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {}),
+			fetch("/api/activity-mute").then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {}),
 		]).then(() => {
 			// Force room-switch $effect to re-run and load messages
 			prevRoom = "";
@@ -486,6 +495,7 @@
 		loadSidebar();
 		loadBookmarks();
 		fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {});
+		fetch("/api/activity-mute").then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {});
 		connectEventSource();
 		document.addEventListener('visibilitychange', handleVisibilityChange);
 	});
@@ -762,7 +772,7 @@
 				>
 					<div>{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 					{#if item.participants?.length}
-						<div style="font-size: 9px; line-height: 1.6; color: #666;">{item.participants.join(', ')}</div>
+						<div style="font-size: 9px; line-height: 1.6; color: #666;">{#each item.participants as p, pi}{#if pi > 0}{', '}{/if}{#if isMutedInRoom(p, item.id)}<LucideVolumeX width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;<span style="color: #7a5e4a;">{p}</span>{:else}{p}{/if}{/each}</div>
 					{/if}
 				</div>
 			{/each}
