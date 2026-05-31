@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 
 export interface FacadeEvent {
-	type: "message" | "huddle_update";
+	type: "message" | "huddle_update" | "mute_update";
 	id?: string;
 	conversationId?: string;
 	sender?: string;

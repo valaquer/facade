@@ -413,6 +413,8 @@
 			const data = JSON.parse(event.data);
 			if (data.type === "livemirror_status") {
 				liveMirrorActive = data.active;
+			} else if (data.type === "mute_update") {
+				fetch(`/api/activity-mute?t=${Date.now()}`).then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {});
 			} else if (data.type === "huddle_update") {
 				loadSidebar();
 			} else if (data.type === "message") {

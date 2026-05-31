@@ -1,7 +1,19 @@
 import type { RequestHandler } from "./$types";
-import { readFileSync } from "fs";
+import { readFileSync, watch, existsSync } from "fs";
+import { emitEvent } from "$lib/server/events";
 
 const ACTIVITY_MUTE_FILE = "/Users/d.patnaik/honeybloom/library/facade/activity-mute.md";
+
+if (!globalThis.__muteWatcherActive && existsSync(ACTIVITY_MUTE_FILE)) {
+	globalThis.__muteWatcherActive = true;
+	let debounce: ReturnType<typeof setTimeout> | null = null;
+	watch(ACTIVITY_MUTE_FILE, () => {
+		if (debounce) clearTimeout(debounce);
+		debounce = setTimeout(() => {
+			emitEvent({ type: "mute_update" });
+		}, 500);
+	});
+}
 
 export const GET: RequestHandler = async () => {
 	try {
