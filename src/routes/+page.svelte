@@ -249,6 +249,13 @@
 	let broadcastedMsgId = $state<string | null>(null);
 	let rekindling = $state(false);
 	let rekindleFlash = $state(false);
+	let zombieCount = $state(0);
+	async function fetchZombieCount() {
+		try {
+			const r = await fetch("/api/rekindle");
+			if (r.ok) { const d = await r.json(); zombieCount = d.zombieCount ?? 0; }
+		} catch {}
+	}
 	function isMutedInRoom(participant: string, roomId: string): boolean {
 		const p = participant.toLowerCase();
 		const r = roomId.toLowerCase();
@@ -361,6 +368,7 @@
 				rekindleFlash = true;
 				setTimeout(() => rekindleFlash = false, 1500);
 			}
+			await fetchZombieCount();
 		} catch {
 			// silent fail
 		} finally {
@@ -438,6 +446,7 @@
 				fetch(`/api/activity-mute?t=${Date.now()}`).then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {});
 			} else if (data.type === "huddle_update") {
 				loadSidebar();
+				fetchZombieCount();
 			} else if (data.type === "message") {
 				const convId = data.conversationId;
 				const msg: ChatMsg = {
@@ -497,6 +506,7 @@
 			loadSidebar(),
 			fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {}),
 			fetch("/api/activity-mute").then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {}),
+			fetchZombieCount(),
 		]).then(() => {
 			// Force room-switch $effect to re-run and load messages
 			prevRoom = "";
@@ -519,6 +529,7 @@
 		loadBookmarks();
 		fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {});
 		fetch("/api/activity-mute").then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {});
+		fetchZombieCount();
 		connectEventSource();
 		document.addEventListener('visibilitychange', handleVisibilityChange);
 	});
@@ -908,7 +919,7 @@
 					<LucideX width={18} height={18} style="color: {pauseError ? '#e74c3c' : '#555'};" />
 				</button>
 				<button class="control-btn" onclick={rekindleZombies} disabled={rekindling} title="Rekindle — relight all zombie rooms">
-					<LucideZap width={14} height={14} style="color: {rekindleFlash ? '#7a5e4a' : '#555'};" />
+					<LucideZap width={14} height={14} style="color: {rekindleFlash || zombieCount > 0 ? '#7a5e4a' : '#555'};" />
 				</button>
 				</div>
 			</div>
