@@ -150,11 +150,7 @@ function emitTextResponse(
 	}
 }
 
-const _g = globalThis as Record<string, unknown>;
-let lastChecked: number =
-	typeof _g.__opencodeLastChecked === "number"
-		? _g.__opencodeLastChecked
-		: Number(getHarnessState("opencode_last_checked") || "0");
+let lastRowId: number = Number(getHarnessState("opencode_last_rowid") || "0");
 let watcherCleanup: (() => void) | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -326,14 +322,15 @@ function checkOpenCodeDb(): void {
 		const placeholders = sessionIds.map(() => "?").join(",");
 		const parts = db
 			.prepare(
-				`SELECT p.id, p.session_id, p.time_created, p.data, json_extract(m.data, '$.role') as role
+				`SELECT p.rowid, p.id, p.session_id, p.time_created, p.data, json_extract(m.data, '$.role') as role
 				 FROM part p
 				 JOIN message m ON m.id = p.message_id
 				 WHERE p.session_id IN (${placeholders})
-				 AND p.time_created > ?
-				 ORDER BY p.time_created ASC`
+				 AND p.rowid > ?
+				 ORDER BY p.rowid ASC`
 			)
-			.all(...sessionIds, lastChecked) as {
+			.all(...sessionIds, lastRowId) as {
+			rowid: number;
 			id: string;
 			session_id: string;
 			time_created: number;
@@ -345,7 +342,9 @@ function checkOpenCodeDb(): void {
 		for (const [dir, sid] of sessions) {
 			teammateNames.set(sid, getTeammateName(dir));
 		}
+		let maxRowId = lastRowId;
 		for (const part of parts) {
+			if (part.rowid > maxRowId) maxRowId = part.rowid;
 			const parsed = JSON.parse(part.data);
 			const type = parsed.type;
 			if (type !== "text") continue;
@@ -353,13 +352,10 @@ function checkOpenCodeDb(): void {
 			const teammate = teammateNames.get(part.session_id) || "unknown";
 			const createdAt = new Date(part.time_created).toISOString();
 			emitTextResponse(parsed, teammate, createdAt);
-			if (part.time_created > lastChecked) {
-				lastChecked = part.time_created;
-			}
 		}
-		if (lastChecked > 0) {
-			(globalThis as Record<string, unknown>).__opencodeLastChecked = lastChecked;
-			setHarnessState("opencode_last_checked", String(lastChecked));
+		if (maxRowId > lastRowId) {
+			lastRowId = maxRowId;
+			setHarnessState("opencode_last_rowid", String(lastRowId));
 		}
 	} catch (e) {
 		console.error("harness-reader: OpenCode query failed", e);
@@ -391,9 +387,33 @@ export function startHarnessReader(): void {
 
 	if (watcherCleanup) return;
 
-	// OpenCode SQLite reader
+	// OpenCode SQLite reader — event-driven via fs.watch, rowid cursor
 	if (fs.existsSync(OPENCODE_DB)) {
 		g.__opencodeReaderActive = true;
+		// Initialize lastRowId to MAX(rowid) for active sessions on cold start
+		if (lastRowId === 0) {
+			try {
+				const db = new Database(OPENCODE_DB, { readonly: true });
+				db.pragma("journal_mode = WAL");
+				db.pragma("query_only = true");
+				const sessions = getActiveSessions(db);
+				if (sessions.size > 0) {
+					const sessionIds = Array.from(sessions.values());
+					const placeholders = sessionIds.map(() => "?").join(",");
+					const row = db
+						.prepare(`SELECT MAX(rowid) as maxId FROM part WHERE session_id IN (${placeholders})`)
+						.get(...sessionIds) as { maxId: number | null } | undefined;
+					if (row?.maxId) {
+						lastRowId = row.maxId;
+						setHarnessState("opencode_last_rowid", String(lastRowId));
+						console.log(`harness-reader: OpenCode cold start — set lastRowId to ${lastRowId}`);
+					}
+				}
+				db.close();
+			} catch (e) {
+				console.error("harness-reader: OpenCode cold start init failed", e);
+			}
+		}
 		checkOpenCodeDb();
 		const dbDir = path.dirname(OPENCODE_DB);
 		const watcher = fs.watch(dbDir, (eventType, filename) => {
@@ -402,19 +422,6 @@ export function startHarnessReader(): void {
 		watcherCleanup = () => {
 			watcher.close();
 			if (debounceTimer) clearTimeout(debounceTimer);
-		};
-		const interval = setInterval(() => {
-			try {
-				fs.statSync(OPENCODE_DB);
-				onDbChange();
-			} catch {
-				clearInterval(interval);
-			}
-		}, 2000);
-		const origCleanup = watcherCleanup;
-		watcherCleanup = () => {
-			origCleanup();
-			clearInterval(interval);
 		};
 	} else {
 		watcherCleanup = () => {};
@@ -429,6 +436,7 @@ export function stopHarnessReader(): void {
 		watcherCleanup();
 		watcherCleanup = null;
 	}
-	(globalThis as Record<string, unknown>).__opencodeReaderActive = false;
+	const _g = globalThis as Record<string, unknown>;
+	_g.__opencodeReaderActive = false;
 	stopClaudeCodeReader();
 }
