@@ -9,6 +9,7 @@
 	import LucideRadio from '~icons/lucide/radio';
 	import LucideMessageSquareOff from '~icons/lucide/message-square-off';
 	import LucideVolumeX from '~icons/lucide/volume-x';
+	import LucideZap from '~icons/lucide/zap';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -246,6 +247,8 @@
 	let pausing = $state(false);
 	let pauseError = $state(false);
 	let broadcastedMsgId = $state<string | null>(null);
+	let rekindling = $state(false);
+	let rekindleFlash = $state(false);
 	function isMutedInRoom(participant: string, roomId: string): boolean {
 		const p = participant.toLowerCase();
 		const r = roomId.toLowerCase();
@@ -345,6 +348,24 @@
 		queuedMessageIds = [];
 		localStorage.removeItem('facade-queued-ids');
 		localStorage.removeItem('facade-paused-room');
+	}
+
+	async function rekindleZombies() {
+		if (rekindling) return;
+		rekindling = true;
+		try {
+			const res = await fetch("/api/rekindle", { method: "POST" });
+			if (!res.ok) throw new Error();
+			const data = await res.json();
+			if (data.rekindled.length > 0) {
+				rekindleFlash = true;
+				setTimeout(() => rekindleFlash = false, 1500);
+			}
+		} catch {
+			// silent fail
+		} finally {
+			rekindling = false;
+		}
 	}
 
 	async function sendPauseMessage() {
@@ -885,6 +906,9 @@
 					</button>
 				<button class="control-btn" onclick={sendPauseMessage} disabled={pausing} title="Pause — alert room">
 					<LucideX width={18} height={18} style="color: {pauseError ? '#e74c3c' : '#555'};" />
+				</button>
+				<button class="control-btn" onclick={rekindleZombies} disabled={rekindling} title="Rekindle — relight all zombie rooms">
+					<LucideZap width={14} height={14} style="color: {rekindleFlash ? '#7a5e4a' : '#555'};" />
 				</button>
 				</div>
 			</div>
