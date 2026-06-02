@@ -919,7 +919,7 @@
 					<LucideX width={18} height={18} style="color: {pauseError ? '#e74c3c' : '#555'};" />
 				</button>
 				<button class="control-btn" onclick={rekindleZombies} disabled={rekindling} title="Rekindle — relight all zombie rooms">
-					<LucideZap width={14} height={14} style="color: {rekindleFlash || zombieCount > 0 ? '#7a5e4a' : '#555'};" />
+					<span class={rekindleFlash || zombieCount > 0 ? 'zap-active' : ''}><LucideZap width={14} height={14} style="color: {rekindleFlash || zombieCount > 0 ? '#7a5e4a' : '#555'};" /></span>
 				</button>
 				</div>
 			</div>
@@ -1019,6 +1019,12 @@
 {/if}
 
 <style>
+	.zap-active :global(svg) {
+		filter: drop-shadow(0 0 3px #7a5e4a);
+	}
+	.zap-active :global(path) {
+		fill: currentColor;
+	}
 	.teammate-row:hover .dismiss-btn {
 		opacity: 1 !important;
 	}
