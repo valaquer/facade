@@ -10,6 +10,8 @@
 	import LucideMessageSquareOff from '~icons/lucide/message-square-off';
 	import LucideVolumeX from '~icons/lucide/volume-x';
 	import LucideZap from '~icons/lucide/zap';
+	import LucideMaximize2 from '~icons/lucide/maximize-2';
+	import LucideMinimize2 from '~icons/lucide/minimize-2';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -240,6 +242,7 @@
 	let liveMirrorActive = $state(false);
 	let mutedEntries = $state<{sender: string, room: string}[]>([]);
 	let pausedRoom = $state<string | null>(null);
+	let focusMode = $state(false);
 	let queuedMessageIds = $state<string[]>([]);
 	let messageQueues = $state<Record<string, ChatMsg[]>>({});
 	let userScrolledUp = $state(false);
@@ -770,9 +773,9 @@
 
 <svelte:window onkeydown={handleKeydown} onmousemove={onRulerMouseMove} onmouseup={onRulerMouseUp} />
 
-<div style="display: grid; grid-template-columns: 280px 1fr 570px 1fr 570px 1fr; height: 100vh;">
+<div style="display: grid; grid-template-columns: 280px calc(50vw - 565px) 570px 1fr 570px 1fr; height: 100vh;">
 	<!-- Sidebar -->
-	<div style="background: var(--color-bg-panel); border-right: 1px dashed var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh;">
+	<div style="background: var(--color-bg-panel); border-right: 1px dashed var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh; visibility: {focusMode ? 'hidden' : 'visible'};">
 		<div style="flex: 1; overflow-y: auto; font-family: var(--font-sans);">
 			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
 				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
@@ -925,6 +928,13 @@
 				<button class="control-btn" onclick={rekindleZombies} disabled={rekindling} title="Rekindle — relight all zombie rooms">
 					<span class={rekindleFlash || zombieCount > 0 ? 'zap-active' : ''}><LucideZap width={14} height={14} style="color: {rekindleFlash || zombieCount > 0 ? '#7a5e4a' : '#555'};" /></span>
 				</button>
+				<button class="control-btn" onclick={() => focusMode = !focusMode} title={focusMode ? "Exit focus mode" : "Focus mode"}>
+						{#if focusMode}
+							<LucideMinimize2 width={14} height={14} style="color: #7a5e4a;" />
+						{:else}
+							<LucideMaximize2 width={14} height={14} style="color: #555;" />
+						{/if}
+					</button>
 				</div>
 			</div>
 			<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
@@ -956,7 +966,7 @@
 		<!-- Gap col 4 -->
 		<div></div>
 		<!-- Duplicate message feed (col 5 — 570px, read-only) -->
-		<div bind:this={activityContainer} style="overflow-y: auto; background: var(--color-bg);">
+		<div bind:this={activityContainer} style="overflow-y: auto; background: var(--color-bg); visibility: {focusMode ? 'hidden' : 'visible'};">
 			<div class="py-2" style="padding-top: 0.5rem;">
 				<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
 					{#each activityCards as msg}
