@@ -444,6 +444,8 @@
 				liveMirrorActive = data.active;
 			} else if (data.type === "mute_update") {
 				fetch(`/api/activity-mute?t=${Date.now()}`).then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {});
+			} else if (data.type === "zombie_update") {
+				zombieCount = data.zombieCount ?? 0;
 			} else if (data.type === "huddle_update") {
 				loadSidebar();
 				fetchZombieCount();
@@ -580,10 +582,12 @@
 					conversations = conversations;
 				}
 				loadingRoom = "";
-				// Scroll to bottom on initial load even if paused
+				// Scroll to bottom on initial load — skip if room is paused
 				setTimeout(() => {
-					if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
-					if (activityContainer) activityContainer.scrollTop = activityContainer.scrollHeight;
+					if (pausedRoom !== room) {
+						if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+						if (activityContainer) activityContainer.scrollTop = activityContainer.scrollHeight;
+					}
 				}, 50);
 			})
 			.catch(() => { if (loadingRoom === room) loadingRoom = ""; });
