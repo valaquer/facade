@@ -1,6 +1,8 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
+import { execSync } from "child_process";
 
 const DB_DIR = "/Users/d.patnaik/honeybloom/library/facade";
 const DB_PATH = path.join(DB_DIR, "facade.db");
@@ -94,6 +96,13 @@ export function initDb(): void {
 		CREATE TABLE IF NOT EXISTS harness_state (
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL
+		)
+	`);
+	db.exec(`
+		CREATE TABLE IF NOT EXISTS notebook (
+			id TEXT PRIMARY KEY,
+			content TEXT NOT NULL,
+			updated_at TEXT NOT NULL
 		)
 	`);
 }
@@ -384,4 +393,73 @@ export function updateBookmarkName(id: string, name: string): void {
 export function deleteBookmark(id: string): void {
 	initDb();
 	db.prepare("DELETE FROM bookmarks WHERE id = ?").run(id);
+}
+
+const KEYCHAIN_SERVICE = "facade-notebook-key";
+const KEYCHAIN_ACCOUNT = "facade";
+
+function getEncryptionKey(): Buffer | null {
+	try {
+		const hex = execSync(
+			`security find-generic-password -s "${KEYCHAIN_SERVICE}" -a "${KEYCHAIN_ACCOUNT}" -w`,
+			{ timeout: 3000, encoding: "utf-8" }
+		).trim();
+		return Buffer.from(hex, "hex");
+	} catch {
+		// Key doesn't exist yet — create one
+		try {
+			const key = crypto.randomBytes(32);
+			const hex = key.toString("hex");
+			execSync(
+				`security add-generic-password -U -s "${KEYCHAIN_SERVICE}" -a "${KEYCHAIN_ACCOUNT}" -w "${hex}"`,
+				{ timeout: 3000 }
+			);
+			return key;
+		} catch {
+			return null;
+		}
+	}
+}
+
+function encrypt(plaintext: string, key: Buffer): string {
+	const iv = crypto.randomBytes(12);
+	const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+	const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+	const tag = cipher.getAuthTag();
+	return Buffer.concat([iv, tag, encrypted]).toString("base64");
+}
+
+function decrypt(ciphertext: string, key: Buffer): string {
+	const buf = Buffer.from(ciphertext, "base64");
+	const iv = buf.subarray(0, 12);
+	const tag = buf.subarray(12, 28);
+	const encrypted = buf.subarray(28);
+	const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+	decipher.setAuthTag(tag);
+	return decipher.update(encrypted) + decipher.final("utf8");
+}
+
+export function saveNotebook(plaintext: string): void {
+	initDb();
+	const key = getEncryptionKey();
+	if (!key) return;
+	const ciphertext = encrypt(plaintext, key);
+	db.prepare(
+		"INSERT OR REPLACE INTO notebook (id, content, updated_at) VALUES ('global', ?, ?)"
+	).run(ciphertext, new Date().toISOString());
+}
+
+export function getNotebook(): string {
+	initDb();
+	const row = db.prepare("SELECT content FROM notebook WHERE id = 'global'").get() as
+		| { content: string }
+		| undefined;
+	if (!row) return "";
+	const key = getEncryptionKey();
+	if (!key) return "";
+	try {
+		return decrypt(row.content, key);
+	} catch {
+		return "";
+	}
 }

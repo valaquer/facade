@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { marked } from 'marked';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import LucideBookmark from '~icons/lucide/bookmark';
 	import LucidePlay from '~icons/lucide/play';
 	import LucidePause from '~icons/lucide/pause';
@@ -12,6 +12,7 @@
 	import LucideZap from '~icons/lucide/zap';
 	import LucideMaximize2 from '~icons/lucide/maximize-2';
 	import LucideMinimize2 from '~icons/lucide/minimize-2';
+	import LucideNotebookPen from '~icons/lucide/notebook-pen';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -243,6 +244,8 @@
 	let mutedEntries = $state<{sender: string, room: string}[]>([]);
 	let pausedRoom = $state<string | null>(null);
 	let focusMode = $state(false);
+	let notebookOpen = $state(false);
+	let notebookText = $state('');
 	let queuedMessageIds = $state<string[]>([]);
 	let messageQueues = $state<Record<string, ChatMsg[]>>({});
 	let userScrolledUp = $state(false);
@@ -537,17 +540,24 @@
 		fetchZombieCount();
 		connectEventSource();
 		document.addEventListener('visibilitychange', handleVisibilityChange);
+		fetch("/api/notebook").then(r => r.json()).then(d => {
+			notebookText = d.content ?? '';
+			notebookOpen = d.notebookOpen ?? false;
+		}).catch(() => {});
 	});
 
 	onDestroy(() => {
 		eventSource?.close();
 		if (sseTimeout) clearTimeout(sseTimeout);
+		if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
 		if (typeof document !== 'undefined') {
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 		}
 	});
 
 	let inputRef: HTMLTextAreaElement | undefined = $state();
+	let notebookRef: HTMLTextAreaElement | undefined = $state();
+	let notebookSaveTimer: ReturnType<typeof setTimeout> | undefined;
 
 
 	$effect(() => {
@@ -773,6 +783,24 @@
 
 <svelte:window onkeydown={handleKeydown} onmousemove={onRulerMouseMove} onmouseup={onRulerMouseUp} />
 
+<!-- Floating notebook -->
+{#if notebookOpen}
+<div style="position: fixed; top: 374px; left: 260px; width: 301px; height: 439px; background: rgba(11, 13, 16, 0.25); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); border: 1px solid rgba(255, 255, 255, 0.11); border-radius: 12px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 100px rgba(8, 9, 10, 0.4); z-index: 9999; display: flex; flex-direction: column;">
+	<div style="display: flex; justify-content: space-evenly; padding: 14px 16px 6px;">
+		{#each Array(8) as _}<div style="width: 10px; height: 10px; border-radius: 50%; background: #222; border: 1px solid #444; box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);"></div>{/each}
+	</div>
+	<div style="margin: 10px 24px 16px; flex: 1; overflow: hidden;">
+		<textarea
+			bind:value={notebookText}
+			bind:this={notebookRef}
+			oninput={() => { if (notebookSaveTimer) clearTimeout(notebookSaveTimer); notebookSaveTimer = setTimeout(() => { fetch('/api/notebook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: notebookText }) }); }, 500); }}
+			placeholder=""
+			style="width: 100%; height: 100%; background: transparent; border: none; color: var(--color-text); font-family: var(--font-mono); font-size: 11px; font-weight: 300; padding: 0; resize: none; outline: none; line-height: 1.6;"
+		></textarea>
+	</div>
+</div>
+{/if}
+
 <div style="display: grid; grid-template-columns: 280px calc(50vw - 565px) 570px 1fr 570px 1fr; height: 100vh;">
 	<!-- Sidebar -->
 	<div style="background: var(--color-bg-panel); border-right: 1px dashed var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh; visibility: {focusMode ? 'hidden' : 'visible'};">
@@ -934,6 +962,9 @@
 						{:else}
 							<LucideMaximize2 width={14} height={14} style="color: #555;" />
 						{/if}
+					</button>
+				<button class="control-btn" onclick={async () => { notebookOpen = !notebookOpen; fetch('/api/notebook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notebookOpen }) }); if (notebookOpen) { await tick(); notebookRef?.focus(); } else { inputRef?.focus(); } }} title={notebookOpen ? "Close notebook" : "Open notebook"}>
+						<LucideNotebookPen width={14} height={14} style="color: {notebookOpen ? '#7a5e4a' : '#555'};" />
 					</button>
 				</div>
 			</div>
