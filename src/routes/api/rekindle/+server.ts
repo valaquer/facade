@@ -1,5 +1,5 @@
 import type { RequestHandler } from "./$types";
-import { getRoomsByType, getHuddleMembers } from "$lib/server/facade-db";
+import { getRoomsByType, getHuddleMembers, resolveActiveRoom } from "$lib/server/facade-db";
 import { isTabAlive, sendToKitty } from "$lib/server/kitten";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -41,21 +41,27 @@ export const POST: RequestHandler = async () => {
 		}
 	}
 
-	// After all tabs launched, send huddle context to rekindled teammates
+	// After all tabs launched, send catch-up message to rekindled teammates
 	const activeHuddles = getRoomsByType("huddle");
 	for (const name of rekindled) {
+		const directRoomId = resolveActiveRoom(`direct-${name}`);
+		const huddleRoomIds: string[] = [];
 		for (const huddle of activeHuddles) {
 			const members = getHuddleMembers(huddle.id);
-			if (!members.includes(name)) continue;
-			// Send huddle room ID so teammate can catch up
-			const ts = new Date().toISOString();
-			await sendToKitty(name, {
-				sender: "boss",
-				room: `direct-${name}`,
-				body: `You were in huddle ${huddle.id}. Catch up using read_this_huddle with roomId: ${huddle.id}`,
-				timestamp: ts,
-			});
+			if (members.includes(name)) huddleRoomIds.push(huddle.id);
 		}
+		const ts = new Date().toISOString();
+		let body: string;
+		if (huddleRoomIds.length > 0 && directRoomId) {
+			body = `You were active in your direct room and in one or more huddles but got closed accidentally. Get caught up on the conversations using the read_room tool. You were in direct room ${directRoomId} and huddles ${huddleRoomIds.join(", ")}.`;
+		} else if (directRoomId) {
+			body = `You were active in your direct room but got closed accidentally. Get caught up using read_room with roomId: ${directRoomId}`;
+		} else if (huddleRoomIds.length > 0) {
+			body = `You were in huddles but got closed accidentally. Get caught up using read_room. Your huddles: ${huddleRoomIds.join(", ")}`;
+		} else {
+			continue;
+		}
+		await sendToKitty(name, { sender: "boss", room: `direct-${name}`, body, timestamp: ts });
 	}
 
 	return new Response(JSON.stringify({ rekindled, skipped }), {
