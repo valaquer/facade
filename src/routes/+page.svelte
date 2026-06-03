@@ -626,6 +626,11 @@
 		} else if (e.key === 'Enter' && !e.shiftKey && document.activeElement !== inputRef && document.activeElement !== notebookRef) {
 			e.preventDefault();
 			inputRef?.focus();
+		} else if (e.key === 'Escape' && document.activeElement === notebookRef && !notebookText.trim()) {
+			e.preventDefault();
+			inputRef?.focus();
+			notebookOpen = false;
+			fetch('/api/notebook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notebookOpen: false }) });
 		} else if (e.key === 'Escape' && document.activeElement === inputRef) {
 			e.preventDefault();
 			inputRef?.blur();
