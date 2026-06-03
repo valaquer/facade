@@ -623,7 +623,7 @@
 			if (selectedIndex >= pbc && selectedIndex < pbc + bookmarks.length) {
 				pendingScrollMessageId = bookmarks[selectedIndex - pbc]?.messageId ?? null;
 			}
-		} else if (e.key === 'Enter' && !e.shiftKey && document.activeElement !== inputRef) {
+		} else if (e.key === 'Enter' && !e.shiftKey && document.activeElement !== inputRef && document.activeElement !== notebookRef) {
 			e.preventDefault();
 			inputRef?.focus();
 		} else if (e.key === 'Escape' && document.activeElement === inputRef) {
