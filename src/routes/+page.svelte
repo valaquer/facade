@@ -13,6 +13,7 @@
 	import LucideMaximize2 from '~icons/lucide/maximize-2';
 	import LucideMinimize2 from '~icons/lucide/minimize-2';
 	import LucideNotebookPen from '~icons/lucide/notebook-pen';
+	import LucideEarOff from '~icons/lucide/ear-off';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -242,6 +243,7 @@
 	let messagesContainer: HTMLElement | undefined = $state();
 	let liveMirrorActive = $state(false);
 	let mutedEntries = $state<{sender: string, room: string}[]>([]);
+	let deafEntries = $state<{recipient: string, room: string}[]>([]);
 	let pausedRoom = $state<string | null>(null);
 	let focusMode = $state(false);
 	let notebookOpen = $state(false);
@@ -266,6 +268,11 @@
 		const p = participant.toLowerCase();
 		const r = roomId.toLowerCase();
 		return mutedEntries.some(e => p === e.sender && r.startsWith(e.room));
+	}
+	function isDeafInRoom(participant: string, roomId: string): boolean {
+		const p = participant.toLowerCase();
+		const r = roomId.toLowerCase();
+		return deafEntries.some(e => p === e.recipient && r.startsWith(e.room));
 	}
 	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
 	// sidebarItems order is teammates → huddles → past rooms
@@ -450,6 +457,8 @@
 				liveMirrorActive = data.active;
 			} else if (data.type === "mute_update") {
 				fetch(`/api/activity-mute?t=${Date.now()}`).then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {});
+			} else if (data.type === "deaf_update") {
+				fetch(`/api/activity-deaf?t=${Date.now()}`).then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {});
 			} else if (data.type === "zombie_update") {
 				zombieCount = data.zombieCount ?? 0;
 			} else if (data.type === "huddle_update") {
@@ -514,6 +523,7 @@
 			loadSidebar(),
 			fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {}),
 			fetch("/api/activity-mute").then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {}),
+			fetch("/api/activity-deaf").then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {}),
 			fetchZombieCount(),
 		]).then(() => {
 			// Force room-switch $effect to re-run and load messages
@@ -537,6 +547,7 @@
 		loadBookmarks();
 		fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {});
 		fetch("/api/activity-mute").then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {});
+		fetch("/api/activity-deaf").then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {});
 		fetchZombieCount();
 		connectEventSource();
 		document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -845,7 +856,7 @@
 				>
 					<div>{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 					{#if item.participants?.length}
-						<div style="font-size: 9px; line-height: 1.6; color: #666;">{#each item.participants as p, pi}{#if pi > 0}{', '}{/if}{#if isMutedInRoom(p, item.id)}<LucideVolumeX width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;<span style="color: #7a5e4a;">{p}</span>{:else}{p}{/if}{/each}</div>
+						<div style="font-size: 9px; line-height: 1.6; color: #666;">{#each item.participants as p, pi}{#if pi > 0}{', '}{/if}{#if isMutedInRoom(p, item.id)}<LucideVolumeX width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;<span style="color: #7a5e4a;">{p}</span>{:else if isDeafInRoom(p, item.id)}<LucideEarOff width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;<span style="color: #7a5e4a;">{p}</span>{:else}{p}{/if}{/each}</div>
 					{/if}
 				</div>
 			{/each}
@@ -987,7 +998,7 @@
 									onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
 									class="w-full bg-transparent outline-none resize-none"
 									rows="1"
-									placeholder="Type a message..."
+									placeholder=""
 									style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none; max-height: 200px; field-sizing: content;"
 								></textarea>
 								<div style="height: 29px;"></div>

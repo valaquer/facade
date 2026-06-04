@@ -88,6 +88,7 @@ function isJunkSentence(sentence: string, phrases: { exact: string[]; prefix: st
 }
 
 const ACTIVITY_MUTE_FILE = "/Users/d.patnaik/honeybloom/library/facade/activity-mute.md";
+const ACTIVITY_DEAF_FILE = "/Users/d.patnaik/honeybloom/library/facade/activity-deaf.md";
 
 export function isActivityMuted(sender: string, room: string): boolean {
 	try {
@@ -101,6 +102,24 @@ export function isActivityMuted(sender: string, room: string): boolean {
 		return lines.some((line) => {
 			const [mutedSender, mutedRoom] = line.split(":", 2);
 			return s === mutedSender && r.startsWith(mutedRoom);
+		});
+	} catch {
+		return false;
+	}
+}
+
+export function isActivityDeaf(recipient: string, room: string): boolean {
+	try {
+		const lines = fs
+			.readFileSync(ACTIVITY_DEAF_FILE, "utf-8")
+			.split("\n")
+			.map((l) => l.trim().toLowerCase())
+			.filter((l) => l.length > 0 && l.includes(":"));
+		const r = recipient.toLowerCase();
+		const rm = room.toLowerCase();
+		return lines.some((line) => {
+			const [deafRecipient, deafRoom] = line.split(":", 2);
+			return r === deafRecipient && rm.startsWith(deafRoom);
 		});
 	} catch {
 		return false;
