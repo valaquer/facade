@@ -765,11 +765,30 @@
 
 	async function dismissTeammate(name: string) {
 		try {
+			archiveFlashName = name;
 			await fetch("/api/rooms/deactivate", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ name }),
 			});
+			setTimeout(() => { archiveFlashName = ""; }, 1500);
+		} catch {}
+	}
+
+	let copyFlashRoom = $state("");
+	let archiveFlashName = $state("");
+	async function copyRoom(roomId: string) {
+		try {
+			const res = await fetch("/api/copy-room", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ roomId }),
+			});
+			if (!res.ok) return;
+			const { filePath } = await res.json();
+			await navigator.clipboard.writeText(`Read up on the conversation that happened in this room: ${filePath}`);
+			copyFlashRoom = roomId;
+			setTimeout(() => { copyFlashRoom = ""; }, 1500);
 		} catch {}
 	}
 
@@ -837,8 +856,8 @@
 					>
 						<div>{fmt.label} {#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if} {#if item.model} <span class="sidebar-meta" style="font-size: 9px; color: #666; font-family: Menlo, monospace; font-weight: bold;">{item.model}</span>{/if}</div>
 						<span class="sidebar-actions">
-							<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Archive"><LucideArchive width={14} height={14} /></button>
-							<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Copy"><LucideFiles width={14} height={14} /></button>
+							<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); dismissTeammate(fmt.label); }} title="Archive"><LucideArchive width={14} height={14} style="color: {archiveFlashName === fmt.label ? '#7a5e4a' : ''}" /></button>
+							<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); copyRoom(item.id); }} title="Copy"><LucideFiles width={14} height={14} style="color: {copyFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
 						</span>
 					</div>
 				{/each}
@@ -861,8 +880,8 @@
 						<div style="font-size: 9px; line-height: 1.6; color: #666;">{#each item.participants as p, pi}{#if pi > 0}{', '}{/if}{#if isMutedInRoom(p, item.id) || isDeafInRoom(p, item.id)}{#if isMutedInRoom(p, item.id)}<LucideVolumeX width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;{/if}{#if isDeafInRoom(p, item.id)}<LucideEarOff width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;{/if}<span style="color: #7a5e4a;">{p}</span>{:else}{p}{/if}{/each}</div>
 					{/if}
 					<span class="sidebar-actions">
-						<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Archive"><LucideArchive width={14} height={14} /></button>
-						<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Copy"><LucideFiles width={14} height={14} /></button>
+						<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); dismissTeammate(item.name); }} title="Archive"><LucideArchive width={14} height={14} style="color: {archiveFlashName === item.name ? '#7a5e4a' : ''}" /></button>
+						<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); copyRoom(item.id); }} title="Copy"><LucideFiles width={14} height={14} style="color: {copyFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
 					</span>
 				</div>
 			{/each}
@@ -915,7 +934,7 @@
 						<div>{fmt.label} &nbsp;{#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 						<span class="sidebar-actions">
 							<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Archive"><LucideArchive width={14} height={14} /></button>
-							<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Copy"><LucideFiles width={14} height={14} /></button>
+							<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); copyRoom(item.id); }} title="Copy"><LucideFiles width={14} height={14} style="color: {copyFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
 						</span>
 					</div>
 				{/each}
@@ -1116,7 +1135,7 @@
 		position: absolute;
 		right: 0;
 		top: 0;
-		bottom: 0;
+		height: 1.4em;
 		opacity: 0;
 		transition: opacity 0.15s;
 		display: flex;
