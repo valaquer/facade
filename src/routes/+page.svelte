@@ -777,6 +777,19 @@
 
 	let copyFlashRoom = $state("");
 	let archiveFlashName = $state("");
+	let archiveFlashRoom = $state("");
+
+	async function archiveHuddle(roomId: string) {
+		try {
+			archiveFlashRoom = roomId;
+			await fetch("/api/archive-huddle", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ roomId }),
+			});
+			setTimeout(() => { archiveFlashRoom = ""; }, 1500);
+		} catch {}
+	}
 	async function copyRoom(roomId: string) {
 		try {
 			const res = await fetch("/api/copy-room", {
@@ -880,7 +893,7 @@
 						<div style="font-size: 9px; line-height: 1.6; color: #666;">{#each item.participants as p, pi}{#if pi > 0}{', '}{/if}{#if isMutedInRoom(p, item.id) || isDeafInRoom(p, item.id)}{#if isMutedInRoom(p, item.id)}<LucideVolumeX width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;{/if}{#if isDeafInRoom(p, item.id)}<LucideEarOff width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;{/if}<span style="color: #7a5e4a;">{p}</span>{:else}{p}{/if}{/each}</div>
 					{/if}
 					<span class="sidebar-actions">
-						<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); dismissTeammate(item.name); }} title="Archive"><LucideArchive width={14} height={14} style="color: {archiveFlashName === item.name ? '#7a5e4a' : ''}" /></button>
+						<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); archiveHuddle(item.id); }} title="Archive"><LucideArchive width={14} height={14} style="color: {archiveFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
 						<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); copyRoom(item.id); }} title="Copy"><LucideFiles width={14} height={14} style="color: {copyFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
 					</span>
 				</div>
