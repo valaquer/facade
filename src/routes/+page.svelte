@@ -14,6 +14,8 @@
 	import LucideMinimize2 from '~icons/lucide/minimize-2';
 	import LucideNotebookPen from '~icons/lucide/notebook-pen';
 	import LucideEarOff from '~icons/lucide/ear-off';
+	import LucideFiles from '~icons/lucide/files';
+	import LucideArchive from '~icons/lucide/archive';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -833,12 +835,11 @@
 						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
 						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
 					>
-						<div>{fmt.label} {#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if} {#if item.model} <span style="font-size: 9px; color: #666; font-family: Menlo, monospace; font-weight: bold;">{item.model}</span>{/if}</div>
-						<button
-							class="dismiss-btn"
-							onclick={(e) => { e.stopPropagation(); dismissTeammate(fmt.label); }}
-							title="Move to Past Rooms"
-						>&times;</button>
+						<div>{fmt.label} {#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if} {#if item.model} <span class="sidebar-meta" style="font-size: 9px; color: #666; font-family: Menlo, monospace; font-weight: bold;">{item.model}</span>{/if}</div>
+						<span class="sidebar-actions">
+							<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Archive"><LucideArchive width={14} height={14} /></button>
+							<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Copy"><LucideFiles width={14} height={14} /></button>
+						</span>
 					</div>
 				{/each}
 			</div>
@@ -850,14 +851,19 @@
 			{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
 				{@const fmt = formatPastRoom(item.id)}
 				<div
+					class="sidebar-row"
 					data-nav-idx={sidebarItems.indexOf(item)}
 					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'};"
+					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
 				>
-					<div>{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
+					<div>{fmt.label} &nbsp;{#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 					{#if item.participants?.length}
 						<div style="font-size: 9px; line-height: 1.6; color: #666;">{#each item.participants as p, pi}{#if pi > 0}{', '}{/if}{#if isMutedInRoom(p, item.id) || isDeafInRoom(p, item.id)}{#if isMutedInRoom(p, item.id)}<LucideVolumeX width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;{/if}{#if isDeafInRoom(p, item.id)}<LucideEarOff width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;{/if}<span style="color: #7a5e4a;">{p}</span>{:else}{p}{/if}{/each}</div>
 					{/if}
+					<span class="sidebar-actions">
+						<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Archive"><LucideArchive width={14} height={14} /></button>
+						<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Copy"><LucideFiles width={14} height={14} /></button>
+					</span>
 				</div>
 			{/each}
 			</div>
@@ -881,11 +887,11 @@
 								placeholder="Type bookmark name"
 								onkeydown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); commitBookmarkName(bm); } }}
 								onblur={() => commitBookmarkName(bm)}
-								style="background: transparent; border: none; outline: none; color: var(--color-text); font-family: var(--font-sans); font-size: inherit; width: 100%; padding: 0;"
+								style="background: transparent; border: none; outline: none; color: var(--color-text); font-family: var(--font-sans); font-size: inherit; width: 100%; padding: 0; text-transform: lowercase;"
 								use:autofocusInput
 							/>
 						{:else}
-							<div>{bm.name}</div>
+							<div style="text-transform: lowercase;">{bm.name}</div>
 						{/if}
 					</div>
 				{/each}
@@ -901,11 +907,16 @@
 					{@const fmt = formatPastRoom(item.name)}
 					{@const pastNavIdx = sidebarItems.indexOf(item) + bookmarks.length}
 					<div
+						class="sidebar-row"
 						data-nav-idx={pastNavIdx}
 						onclick={() => selectedIndex = pastNavIdx}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === pastNavIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === pastNavIdx ? 'var(--color-bg-element)' : 'transparent'};"
+					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === pastNavIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === pastNavIdx ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
 					>
-						<div>{fmt.label} &nbsp;{#if fmt.date}<span style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
+						<div>{fmt.label} &nbsp;{#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
+						<span class="sidebar-actions">
+							<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Archive"><LucideArchive width={14} height={14} /></button>
+							<button class="sidebar-action-btn" onclick={(e) => e.stopPropagation()} title="Copy"><LucideFiles width={14} height={14} /></button>
+						</span>
 					</div>
 				{/each}
 				</div>
@@ -1088,6 +1099,43 @@
 	}
 	.teammate-row:hover .dismiss-btn {
 		opacity: 1 !important;
+	}
+	.sidebar-row:hover .sidebar-actions,
+	.teammate-row:hover .sidebar-actions {
+		opacity: 1 !important;
+	}
+	.sidebar-row:hover .sidebar-meta,
+	.teammate-row:hover .sidebar-meta {
+		opacity: 1 !important;
+	}
+	.sidebar-meta {
+		opacity: 0;
+		transition: opacity 0.15s;
+	}
+	.sidebar-actions {
+		position: absolute;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		opacity: 0;
+		transition: opacity 0.15s;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		padding-right: 0.5rem;
+	}
+	.sidebar-action-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: #555;
+		padding: 6px 2px;
+		line-height: 1;
+		display: flex;
+		align-items: center;
+	}
+	.sidebar-action-btn:hover {
+		color: var(--color-text);
 	}
 	.dismiss-btn {
 		position: absolute;
