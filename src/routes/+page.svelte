@@ -1019,7 +1019,7 @@
 			<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
 				<div></div>
 				<div class="control-strip">
-					<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} title="Live mirror"></span>
+					<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} class:pulsing={pulsingTeammates.length > 0} title="Live mirror"></span>
 				<button class="control-btn" onclick={() => { if (pausedRoom !== selectedConvId) { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } else { stepOne(); } }} title={pausedRoom === selectedConvId ? ((messageQueues[selectedConvId]?.length ?? 0) > 0 ? "Next message" : "Paused") : "Pause"}>
 					{#if pausedRoom === selectedConvId}
 						<LucidePlay width={14} height={14} style="color: #7a5e4a;" />
@@ -1295,6 +1295,14 @@
 	.control-led.active {
 		background: #4ade80;
 		box-shadow: 0 0 6px #4ade80;
+	}
+	.control-led.pulsing {
+		animation: led-pulse 1s ease-in-out infinite;
+		box-shadow: none;
+	}
+	@keyframes led-pulse {
+		0%, 100% { background: #ff3333; }
+		50% { background: #ffffff; }
 	}
 	.livemirror-led {
 		position: absolute;
