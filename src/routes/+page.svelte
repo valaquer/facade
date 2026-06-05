@@ -260,6 +260,7 @@
 	let rekindling = $state(false);
 	let rekindleFlash = $state(false);
 	let zombieCount = $state(0);
+	let pulsingTeammates = $state<string[]>([]);
 	async function fetchZombieCount() {
 		try {
 			const r = await fetch("/api/rekindle");
@@ -461,6 +462,14 @@
 				fetch(`/api/activity-mute?t=${Date.now()}`).then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {});
 			} else if (data.type === "deaf_update") {
 				fetch(`/api/activity-deaf?t=${Date.now()}`).then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {});
+			} else if (data.type === "pulse_update") {
+				if (data.teammate && !pulsingTeammates.includes(data.teammate)) {
+					pulsingTeammates = [...pulsingTeammates, data.teammate];
+				}
+			} else if (data.type === "pulse_dismiss") {
+				if (data.teammate) {
+					pulsingTeammates = pulsingTeammates.filter(n => n !== data.teammate);
+				}
 			} else if (data.type === "zombie_update") {
 				zombieCount = data.zombieCount ?? 0;
 			} else if (data.type === "huddle_update") {
@@ -526,6 +535,7 @@
 			fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {}),
 			fetch("/api/activity-mute").then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {}),
 			fetch("/api/activity-deaf").then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {}),
+			fetch("/api/pulse").then(r => r.json()).then(d => { if (d.pending?.length) { pulsingTeammates = d.pending.map((p: {teammate: string}) => p.teammate); } }).catch(() => {}),
 			fetchZombieCount(),
 		]).then(() => {
 			// Force room-switch $effect to re-run and load messages
@@ -550,6 +560,7 @@
 		fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {});
 		fetch("/api/activity-mute").then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {});
 		fetch("/api/activity-deaf").then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {});
+		fetch("/api/pulse").then(r => r.json()).then(d => { if (d.pending?.length) { pulsingTeammates = d.pending.map((p: {teammate: string}) => p.teammate); } }).catch(() => {});
 		fetchZombieCount();
 		connectEventSource();
 		document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -766,6 +777,8 @@
 	async function dismissTeammate(name: string) {
 		try {
 			archiveFlashName = name;
+			pulsingTeammates = pulsingTeammates.filter(n => n !== name);
+			fetch("/api/dismiss-pulse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teammate: name }) }).catch(() => {});
 			await fetch("/api/rooms/deactivate", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -862,10 +875,10 @@
 				{#each sidebarItems.filter((x) => x.kind === "teammate") as item}
 					{@const fmt = formatPastRoom(item.id)}
 					<div
-						class="teammate-row"
+						class="teammate-row{pulsingTeammates.includes(fmt.label) ? ' notification-pulse' : ''}"
 						data-nav-idx={sidebarItems.indexOf(item)}
-						onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
+						onclick={() => { if (pulsingTeammates.includes(fmt.label)) { pulsingTeammates = pulsingTeammates.filter(n => n !== fmt.label); fetch("/api/dismiss-pulse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teammate: fmt.label }) }).catch(() => {}); } selectedIndex = sidebarItems.indexOf(item); }}
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {pulsingTeammates.includes(fmt.label) ? '' : (selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)')}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
 					>
 						<div>{fmt.label} {#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if} {#if item.model} <span class="sidebar-meta" style="font-size: 9px; color: #666; font-family: Menlo, monospace; font-weight: bold;">{item.model}</span>{/if}</div>
 						<span class="sidebar-actions">
@@ -1287,5 +1300,12 @@
 	.livemirror-led.active {
 		background: #4ade80;
 		box-shadow: 0 0 6px #4ade80;
+	}
+	.notification-pulse {
+		animation: notification-pulse 1s ease-in-out infinite;
+	}
+	@keyframes notification-pulse {
+		0%, 100% { color: #ff3333; }
+		50% { color: #ffffff; }
 	}
 </style>
