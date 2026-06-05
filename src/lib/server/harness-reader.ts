@@ -175,6 +175,11 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Claude Code JSONL reader state — offsets persisted in Facade DB
 const jsonlOffsets = new Map<string, number>();
+// Context limit alert state — keyed by JSONL file path, auto-resets on new session
+const contextAlerted = ((globalThis as Record<string, unknown>).__contextAlerted ??
+	new Map<string, boolean>()) as Map<string, boolean>;
+(globalThis as Record<string, unknown>).__contextAlerted = contextAlerted;
+const CONTEXT_THRESHOLD = 900000;
 // Load persisted offsets from DB on module init
 try {
 	const stored = getHarnessState("jsonl_offsets");
@@ -242,6 +247,25 @@ function checkClaudeJsonl(filePath: string, teammate: string): void {
 				if (entry.type !== "assistant") continue;
 				const message = entry.message;
 				if (!message?.content) continue;
+				// Context limit check
+				const usage = message.usage;
+				if (usage && !contextAlerted.get(filePath)) {
+					const contextSize =
+						(usage.cache_read_input_tokens || 0) +
+						(usage.cache_creation_input_tokens || 0) +
+						(usage.input_tokens || 0);
+					if (contextSize >= CONTEXT_THRESHOLD) {
+						contextAlerted.set(filePath, true);
+						console.log(
+							`[harness-reader] ${teammate} context at ${contextSize} tokens — firing pulse`
+						);
+						fetch("http://localhost:51730/api/pulse", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ teammate, reason: "context window at 90% already" }),
+						}).catch(() => {});
+					}
+				}
 				const createdAt = entry.timestamp || new Date().toISOString();
 				for (const part of message.content) {
 					if (part.type === "text" && part.text?.trim()) {
