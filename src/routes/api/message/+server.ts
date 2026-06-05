@@ -227,17 +227,24 @@ export const POST: RequestHandler = async ({ request }) => {
 		).toLowerCase();
 		if (targetTeammate !== sender) {
 			// Auto-wake closed teammate on incoming message (non-boss senders only)
+			let woke = false;
 			if (sender !== "boss") {
 				const alive = await isTabAlive(targetTeammate);
 				if (!alive) {
 					try {
 						await execFileAsync(LAUNCH_SCRIPT, ["--solo", targetTeammate], { timeout: 30000 });
+						woke = true;
 					} catch {}
 				}
 			}
-			sendToKitty(targetTeammate, { sender, room: resolvedRoom, body, timestamp: createdAt }).catch(
-				() => {}
-			);
+			const msg = { sender, room: resolvedRoom, body, timestamp: createdAt };
+			if (woke) {
+				setTimeout(() => {
+					sendToKitty(targetTeammate, msg).catch(() => {});
+				}, 30000);
+			} else {
+				sendToKitty(targetTeammate, msg).catch(() => {});
+			}
 		}
 	}
 
