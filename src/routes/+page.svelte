@@ -566,8 +566,7 @@
 		pulsePoller = setInterval(() => {
 			fetch("/api/pulse").then(r => r.json()).then(d => {
 				const pending = (d.pending ?? []).map((p: {teammate: string}) => p.teammate);
-				if (pending.length > 0) { pulsingTeammates = pending; }
-				else if (pulsingTeammates.length > 0) { pulsingTeammates = []; }
+				if (pending.length > 0) { pulsingTeammates = [...new Set([...pulsingTeammates, ...pending])]; }
 			}).catch(() => {});
 		}, 60000);
 		document.addEventListener('visibilitychange', handleVisibilityChange);
