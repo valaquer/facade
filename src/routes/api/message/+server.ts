@@ -1,5 +1,10 @@
 import type { RequestHandler } from "./$types";
-import { sendToKitty } from "$lib/server/kitten";
+import { sendToKitty, isTabAlive } from "$lib/server/kitten";
+import { execFile } from "child_process";
+import { promisify } from "util";
+
+const execFileAsync = promisify(execFile);
+const LAUNCH_SCRIPT = "/Users/d.patnaik/honeybloom/chica/scripts/kitty-open-teammate.sh";
 import { emitEvent } from "$lib/server/events";
 import {
 	saveMessage,
@@ -221,6 +226,15 @@ export const POST: RequestHandler = async ({ request }) => {
 			nameMatch ? nameMatch[1] : resolvedRoom.replace(/^direct-/, "")
 		).toLowerCase();
 		if (targetTeammate !== sender) {
+			// Auto-wake closed teammate on incoming message (non-boss senders only)
+			if (sender !== "boss") {
+				const alive = await isTabAlive(targetTeammate);
+				if (!alive) {
+					try {
+						await execFileAsync(LAUNCH_SCRIPT, ["--solo", targetTeammate], { timeout: 30000 });
+					} catch {}
+				}
+			}
 			sendToKitty(targetTeammate, { sender, room: resolvedRoom, body, timestamp: createdAt }).catch(
 				() => {}
 			);
