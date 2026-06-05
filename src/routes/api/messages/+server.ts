@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	// Past direct rooms have orphaned messages under originalRoomId
 	if (messages.length === 0) {
 		const pastRoom = getRoom(room);
-		if (pastRoom?.originalRoomId) {
+		if (pastRoom?.type === "past" && pastRoom?.originalRoomId) {
 			messages = getMessages(pastRoom.originalRoomId);
 		}
 	}
