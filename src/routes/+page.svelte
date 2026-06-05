@@ -563,6 +563,13 @@
 		fetch("/api/pulse").then(r => r.json()).then(d => { if (d.pending?.length) { pulsingTeammates = d.pending.map((p: {teammate: string}) => p.teammate); } }).catch(() => {});
 		fetchZombieCount();
 		connectEventSource();
+		pulsePoller = setInterval(() => {
+			fetch("/api/pulse").then(r => r.json()).then(d => {
+				const pending = (d.pending ?? []).map((p: {teammate: string}) => p.teammate);
+				if (pending.length > 0) { pulsingTeammates = pending; }
+				else if (pulsingTeammates.length > 0) { pulsingTeammates = []; }
+			}).catch(() => {});
+		}, 60000);
 		document.addEventListener('visibilitychange', handleVisibilityChange);
 		fetch("/api/notebook").then(r => r.json()).then(d => {
 			notebookText = d.content ?? '';
@@ -574,6 +581,7 @@
 		eventSource?.close();
 		if (sseTimeout) clearTimeout(sseTimeout);
 		if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
+		if (pulsePoller) clearInterval(pulsePoller);
 		if (typeof document !== 'undefined') {
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 		}
@@ -582,6 +590,7 @@
 	let inputRef: HTMLTextAreaElement | undefined = $state();
 	let notebookRef: HTMLTextAreaElement | undefined = $state();
 	let notebookSaveTimer: ReturnType<typeof setTimeout> | undefined;
+	let pulsePoller: ReturnType<typeof setInterval> | undefined;
 
 
 	$effect(() => {
