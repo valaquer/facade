@@ -1003,7 +1003,8 @@
 								{/if}
 							</div>
 							<button
-								class="bookmark-btn"
+								class="bookmark-btn {bookmarks.some(bm => bm.messageId === msg.id) ? 'bookmarked' : ''}"
+								style="opacity: {bookmarks.some(bm => bm.messageId === msg.id) ? '1' : ''};"
 								onclick={() => toggleBookmark(msg)}
 								title="Bookmark this message"
 							><LucideBookmark width={14} height={14} style="color: {bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'}; fill: {bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'};" /></button>
@@ -1227,6 +1228,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+	}
+	.bookmark-btn.bookmarked :global(path) {
+		fill: currentColor;
 	}
 	.activity-row:hover .broadcast-btn {
 		opacity: 1 !important;
