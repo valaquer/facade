@@ -179,7 +179,7 @@ const jsonlOffsets = new Map<string, number>();
 const contextAlerted = ((globalThis as Record<string, unknown>).__contextAlerted ??
 	new Map<string, boolean>()) as Map<string, boolean>;
 (globalThis as Record<string, unknown>).__contextAlerted = contextAlerted;
-const CONTEXT_THRESHOLD = 900000;
+const CONTEXT_THRESHOLD = 850000;
 // Load persisted offsets from DB on module init
 try {
 	const stored = getHarnessState("jsonl_offsets");
