@@ -16,6 +16,7 @@
 	import LucideEarOff from '~icons/lucide/ear-off';
 	import LucideFiles from '~icons/lucide/files';
 	import LucideArchive from '~icons/lucide/archive';
+	import LucideLibrary from '~icons/lucide/library';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -1047,6 +1048,10 @@
 				<button class="control-btn" onclick={async () => { notebookOpen = !notebookOpen; fetch('/api/notebook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notebookOpen }) }); if (notebookOpen) { await tick(); notebookRef?.focus(); } else { inputRef?.focus(); } }} title={notebookOpen ? "Close notebook" : "Open notebook"}>
 						<LucideNotebookPen width={14} height={14} style="color: {notebookOpen ? '#7a5e4a' : '#555'};" />
 					</button>
+				<span style="border-left: 1px dashed #282a30; height: 14px; margin: 0 4px;"></span>
+				<button class="control-btn" onclick={() => window.open('/wiki', '_blank')} title="Wiki">
+					<LucideLibrary width={14} height={14} style="color: #555;" />
+				</button>
 				</div>
 			</div>
 			<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
