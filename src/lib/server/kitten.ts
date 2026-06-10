@@ -62,10 +62,14 @@ export function sendToKitty(
 			return;
 		}
 
-		const replyRoom =
-			payload.room.startsWith("direct-") && payload.sender !== "boss"
-				? `direct-${payload.sender.toLowerCase()}`
-				: payload.room;
+		let replyRoom = payload.room;
+		if (payload.room.startsWith("direct-") && payload.sender !== "boss") {
+			replyRoom = `direct-${payload.sender.toLowerCase()}`;
+		} else if (payload.room.startsWith("direct-")) {
+			// Strip session-scoped timestamps from Boss Reply-to (prevents model ID fabrication)
+			const bareMatch = payload.room.match(/^(direct-[a-z]+)/);
+			replyRoom = bareMatch ? bareMatch[1] : payload.room;
+		}
 		const text = [
 			`sender: ${payload.sender}`,
 			`room: ${payload.room}`,

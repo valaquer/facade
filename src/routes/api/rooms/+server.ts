@@ -6,7 +6,7 @@ const CSV_PATH =
 	"/Users/d.patnaik/honeybloom/library/skills/gestalt-layer-3-janus/janus-config.csv";
 
 function parseDisplayName(roomId: string): string {
-	const match = roomId.match(/^(?:direct|huddle)-(.+?)-\d{8}-\d{6}$/);
+	const match = roomId.match(/^(?:direct|huddle)-([a-z]+)/);
 	if (match) return match[1];
 	const legacy = roomId.replace(/^direct-/, "").replace(/^huddle-/, "");
 	return legacy.replace(/-legacy$/, "");

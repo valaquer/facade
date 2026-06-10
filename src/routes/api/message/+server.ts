@@ -62,17 +62,27 @@ export const POST: RequestHandler = async ({ request }) => {
 				{ status: 404, headers: { "Content-Type": "application/json" } }
 			);
 		} else {
-			const ts = formatTimestamp(new Date());
-			const name = resolvedRoom.replace("direct-", "");
-			resolvedRoom = `direct-${name}-${ts}`;
-			saveRoom({
-				id: resolvedRoom,
-				type: "teammate",
-				name,
-				originalRoomId: `direct-${name}`,
-				lastActivity: createdAt,
-				startedAt: createdAt,
-			});
+			// Strip session-scoped timestamps to prevent double-timestamp malformation
+			// Models may fabricate IDs like direct-katja-20260610-062025 from UTC timestamps
+			const scopedMatch = resolvedRoom.match(/^(direct-[a-z]+)-\d{8}-\d{6}/);
+			if (scopedMatch) {
+				resolvedRoom = scopedMatch[1];
+				const retryRoom = resolveActiveRoom(resolvedRoom);
+				if (retryRoom) resolvedRoom = retryRoom;
+			}
+			if (!roomExists(resolvedRoom)) {
+				const ts = formatTimestamp(new Date());
+				const name = resolvedRoom.replace("direct-", "");
+				resolvedRoom = `direct-${name}-${ts}`;
+				saveRoom({
+					id: resolvedRoom,
+					type: "teammate",
+					name,
+					originalRoomId: `direct-${name}`,
+					lastActivity: createdAt,
+					startedAt: createdAt,
+				});
+			}
 		}
 	}
 

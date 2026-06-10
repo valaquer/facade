@@ -9,7 +9,7 @@ const execFileAsync = promisify(execFile);
 const LAUNCH_SCRIPT = "/Users/d.patnaik/honeybloom/chica/scripts/kitty-open-teammate.sh";
 
 function parseDisplayName(roomId: string): string {
-	const match = roomId.match(/^(?:direct|huddle)-(.+?)-\d{8}-\d{6}$/);
+	const match = roomId.match(/^(?:direct|huddle)-([a-z]+)/);
 	if (match) return match[1];
 	return roomId.replace(/^direct-/, "").replace(/^huddle-/, "");
 }
