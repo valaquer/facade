@@ -570,7 +570,7 @@
 				if (pending.length > 0) { pulsingTeammates = [...new Set([...pulsingTeammates, ...pending])]; }
 			}).catch(() => {});
 		}, 60000);
-		zombiePoller = setInterval(fetchZombieCount, 30000);
+		zombiePoller = setInterval(fetchZombieCount, 5000);
 		document.addEventListener('visibilitychange', handleVisibilityChange);
 		fetch("/api/notebook").then(r => r.json()).then(d => {
 			notebookText = d.content ?? '';
