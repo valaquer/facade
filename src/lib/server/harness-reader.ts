@@ -11,6 +11,7 @@ import {
 
 const OPENCODE_DB = "/Users/d.patnaik/.local/share/opencode/opencode.db";
 const CLAUDE_PROJECTS_DIR = "/Users/d.patnaik/.claude/projects";
+const CLAUDE_MINI_PROJECTS_DIR = "/Users/d.patnaik/honeybloom/.claude-mini/projects";
 const CLAUDE_PROJECT_PREFIX = "-Users-d-patnaik-honeybloom-";
 
 const CREDENTIAL_PATTERNS = [
@@ -195,6 +196,7 @@ function persistJsonlOffsets(): void {
 	setHarnessState("jsonl_offsets", JSON.stringify(obj));
 }
 let claudeWatchers: fs.FSWatcher[] = [];
+let miniPollInterval: ReturnType<typeof setInterval> | null = null;
 const claudeDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function getActiveJsonlFile(projectDir: string): string | null {
@@ -298,29 +300,16 @@ function onClaudeJsonlChange(projectDir: string, teammate: string): void {
 	);
 }
 
-function startClaudeCodeReader(): void {
-	// Process-level guard — prevent duplicate watchers from HMR re-imports
-	const g = globalThis as Record<string, unknown>;
-	if (g.__claudeReaderActive) return;
-	g.__claudeReaderActive = true;
+function initProjectDir(projectsDir: string, usePolling: boolean): void {
+	if (!fs.existsSync(projectsDir)) return;
 
-	if (!fs.existsSync(CLAUDE_PROJECTS_DIR)) {
-		console.error("harness-reader: Claude projects dir not found");
-		g.__claudeReaderActive = false;
-		return;
-	}
-
-	const dirs = fs
-		.readdirSync(CLAUDE_PROJECTS_DIR)
-		.filter((d) => d.startsWith(CLAUDE_PROJECT_PREFIX));
-	console.log(`harness-reader: watching ${dirs.length} Claude Code project dirs`);
+	const dirs = fs.readdirSync(projectsDir).filter((d) => d.startsWith(CLAUDE_PROJECT_PREFIX));
 
 	for (const dirName of dirs) {
 		const teammate = extractTeammateFromProjectDir(dirName);
 		if (!teammate) continue;
-		const projectDir = path.join(CLAUDE_PROJECTS_DIR, dirName);
+		const projectDir = path.join(projectsDir, dirName);
 
-		// Set initial offset to current file size ONLY if no DB-persisted offset exists
 		const jsonlFile = getActiveJsonlFile(projectDir);
 		if (jsonlFile && !jsonlOffsets.has(jsonlFile)) {
 			try {
@@ -330,15 +319,54 @@ function startClaudeCodeReader(): void {
 			} catch {}
 		}
 
-		try {
-			const watcher = fs.watch(projectDir, (eventType, filename) => {
-				if (filename?.endsWith(".jsonl")) {
-					onClaudeJsonlChange(projectDir, teammate);
-				}
-			});
-			claudeWatchers.push(watcher);
-		} catch {}
+		if (!usePolling) {
+			try {
+				const watcher = fs.watch(projectDir, (eventType, filename) => {
+					if (filename?.endsWith(".jsonl")) {
+						onClaudeJsonlChange(projectDir, teammate);
+					}
+				});
+				claudeWatchers.push(watcher);
+			} catch {}
+		}
 	}
+
+	if (usePolling && dirs.length > 0) {
+		console.log(
+			`harness-reader: polling ${dirs.length} Mini project dirs (NFS — fs.watch unreliable)`
+		);
+	} else if (dirs.length > 0) {
+		console.log(`harness-reader: watching ${dirs.length} project dirs in ${projectsDir}`);
+	}
+}
+
+function pollMiniProjects(): void {
+	if (!fs.existsSync(CLAUDE_MINI_PROJECTS_DIR)) return;
+	try {
+		const dirs = fs
+			.readdirSync(CLAUDE_MINI_PROJECTS_DIR)
+			.filter((d) => d.startsWith(CLAUDE_PROJECT_PREFIX));
+		for (const dirName of dirs) {
+			const teammate = extractTeammateFromProjectDir(dirName);
+			if (!teammate) continue;
+			const projectDir = path.join(CLAUDE_MINI_PROJECTS_DIR, dirName);
+			const jsonlFile = getActiveJsonlFile(projectDir);
+			if (jsonlFile) checkClaudeJsonl(jsonlFile, teammate);
+		}
+	} catch {}
+}
+
+function startClaudeCodeReader(): void {
+	const g = globalThis as Record<string, unknown>;
+	if (g.__claudeReaderActive) return;
+	g.__claudeReaderActive = true;
+
+	// Local projects — fs.watch (FSEvents works for local writes)
+	initProjectDir(CLAUDE_PROJECTS_DIR, false);
+
+	// Mini projects on NFS — polling (FSEvents unreliable over NFS)
+	initProjectDir(CLAUDE_MINI_PROJECTS_DIR, true);
+	miniPollInterval = setInterval(pollMiniProjects, 3000);
 }
 
 function stopClaudeCodeReader(): void {
@@ -348,6 +376,10 @@ function stopClaudeCodeReader(): void {
 		} catch {}
 	}
 	claudeWatchers = [];
+	if (miniPollInterval) {
+		clearInterval(miniPollInterval);
+		miniPollInterval = null;
+	}
 	for (const t of claudeDebounceTimers.values()) clearTimeout(t);
 	claudeDebounceTimers.clear();
 	(globalThis as Record<string, unknown>).__claudeReaderActive = false;
