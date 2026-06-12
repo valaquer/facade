@@ -570,6 +570,7 @@
 				if (pending.length > 0) { pulsingTeammates = [...new Set([...pulsingTeammates, ...pending])]; }
 			}).catch(() => {});
 		}, 60000);
+		zombiePoller = setInterval(fetchZombieCount, 30000);
 		document.addEventListener('visibilitychange', handleVisibilityChange);
 		fetch("/api/notebook").then(r => r.json()).then(d => {
 			notebookText = d.content ?? '';
@@ -582,6 +583,7 @@
 		if (sseTimeout) clearTimeout(sseTimeout);
 		if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
 		if (pulsePoller) clearInterval(pulsePoller);
+		if (zombiePoller) clearInterval(zombiePoller);
 		if (typeof document !== 'undefined') {
 			document.removeEventListener('visibilitychange', handleVisibilityChange);
 		}
@@ -591,6 +593,7 @@
 	let notebookRef: HTMLTextAreaElement | undefined = $state();
 	let notebookSaveTimer: ReturnType<typeof setTimeout> | undefined;
 	let pulsePoller: ReturnType<typeof setInterval> | undefined;
+	let zombiePoller: ReturnType<typeof setInterval> | undefined;
 
 
 	$effect(() => {
