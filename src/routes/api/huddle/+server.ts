@@ -1,7 +1,6 @@
 import type { RequestHandler } from "./$types";
 import {
 	saveRoom,
-	setRoomType,
 	saveMessage,
 	getHuddleMembers,
 	getRoom,
@@ -12,8 +11,8 @@ import {
 } from "$lib/server/facade-db";
 import { emitEvent } from "$lib/server/events";
 import { sendToKitty, isTabAlive } from "$lib/server/kitten";
-import { endHuddle } from "$lib/server/huddle-helpers";
-import { startTokenTimer, clearTokenTimer, advanceTokenAndNotify } from "$lib/server/token-helpers";
+import { endHuddle, removeFromHuddle } from "$lib/server/huddle-helpers";
+import { startTokenTimer } from "$lib/server/token-helpers";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { v4 } from "uuid";
@@ -213,65 +212,15 @@ export const POST: RequestHandler = async ({ request }) => {
 		const room = getRoom(roomId);
 		if (!room) return new Response(JSON.stringify({ error: "Room not found" }), { status: 404 });
 
-		const current = getHuddleMembers(roomId);
-		const updated = current.filter((m: string) => !participants.includes(m));
-		if (updated.length === 0) {
-			setRoomType(roomId, "past");
-			emitEvent({ type: "huddle_update" });
+		const updated = removeFromHuddle(roomId, participants);
+
+		if (updated === null) {
 			return new Response(
 				JSON.stringify({ status: "ended", roomId, reason: "no_participants_left" }),
 				{
 					headers: { "Content-Type": "application/json" },
 				}
 			);
-		}
-
-		saveRoom({
-			id: roomId,
-			type: "huddle",
-			name: room.name,
-			participants: updated,
-			originalRoomId: `huddle-${room.name}`,
-			lastActivity: new Date().toISOString(),
-			startedAt: room.startedAt,
-		});
-
-		emitEvent({ type: "huddle_update" });
-
-		// Release token if removed participant held it
-		for (const p of participants) {
-			clearTokenTimer(roomId);
-			const next = advanceTokenAndNotify(roomId, p);
-			if (next) {
-				startTokenTimer(roomId);
-			}
-		}
-
-		const notification = `${participants.join(", ")} removed from huddle ${roomId}.`;
-		const msg = {
-			id: v4(),
-			conversationId: roomId,
-			sender: "system",
-			content: notification,
-			createdAt: new Date().toISOString(),
-			type: "message",
-		};
-		saveMessage(msg);
-		emitEvent({
-			type: "message",
-			conversationId: roomId,
-			sender: "system",
-			content: notification,
-			timestamp: msg.createdAt,
-		});
-
-		for (const name of updated) {
-			sendToKitty(name, {
-				sender: "system",
-				room: roomId,
-				body: notification,
-				timestamp: msg.createdAt,
-			}).catch(() => {});
 		}
 
 		return new Response(JSON.stringify({ status: "removed", roomId, participants: updated }), {
