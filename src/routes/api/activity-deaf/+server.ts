@@ -4,10 +4,10 @@ import { emitEvent } from "$lib/server/events";
 
 const ACTIVITY_DEAF_FILE = "/Users/d.patnaik/honeybloom/library/facade/activity-deaf.md";
 
-if (!globalThis.__deafWatcherActive && existsSync(ACTIVITY_DEAF_FILE)) {
-	globalThis.__deafWatcherActive = true;
+if (globalThis.__deafWatcher) globalThis.__deafWatcher.close();
+if (existsSync(ACTIVITY_DEAF_FILE)) {
 	let debounce: ReturnType<typeof setTimeout> | null = null;
-	watch(ACTIVITY_DEAF_FILE, () => {
+	globalThis.__deafWatcher = watch(ACTIVITY_DEAF_FILE, () => {
 		if (debounce) clearTimeout(debounce);
 		debounce = setTimeout(() => {
 			emitEvent({ type: "deaf_update" });

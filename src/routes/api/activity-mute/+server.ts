@@ -4,10 +4,10 @@ import { emitEvent } from "$lib/server/events";
 
 const ACTIVITY_MUTE_FILE = "/Users/d.patnaik/honeybloom/library/facade/activity-mute.md";
 
-if (!globalThis.__muteWatcherActive && existsSync(ACTIVITY_MUTE_FILE)) {
-	globalThis.__muteWatcherActive = true;
+if (globalThis.__muteWatcher) globalThis.__muteWatcher.close();
+if (existsSync(ACTIVITY_MUTE_FILE)) {
 	let debounce: ReturnType<typeof setTimeout> | null = null;
-	watch(ACTIVITY_MUTE_FILE, () => {
+	globalThis.__muteWatcher = watch(ACTIVITY_MUTE_FILE, () => {
 		if (debounce) clearTimeout(debounce);
 		debounce = setTimeout(() => {
 			emitEvent({ type: "mute_update" });
