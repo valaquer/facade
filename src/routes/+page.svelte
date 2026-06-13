@@ -217,7 +217,7 @@
 		});
 	});
 
-	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; model?: string; participants?: string[] };
+	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; model?: string; participants?: string[]; online?: boolean };
 	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean; response?: boolean; summary?: string };
 	type Bookmark = { id: string; messageId: string; roomId: string; name: string; createdAt: string };
 
@@ -235,6 +235,8 @@
 			const [, host, y, mo, d, h, mi] = huddleMatch;
 			return { label: host + "'s huddle", date: `${parseInt(d)} ${months[parseInt(mo)-1]} ${y} ${h}:${mi}` };
 		}
+		const bareMatch = name.match(/^direct-([a-z]+)$/);
+		if (bareMatch) return { label: bareMatch[1], date: "" };
 		return { label: name, date: "" };
 	}
 
@@ -323,7 +325,7 @@
 			]);
 			const data = await roomsRes.json();
 			const prefs = await prefsRes.json();
-			const teammates = (data.teammates ?? []).map((t: { id: string; name: string; model: string }) => ({ id: t.id, name: t.name, model: t.model || "", kind: "teammate" as const })).sort((a, b) => a.name.localeCompare(b.name));
+			const teammates = (data.teammates ?? []).map((t: { id: string; name: string; model: string; online: boolean }) => ({ id: t.id, name: t.name, model: t.model || "", kind: "teammate" as const, online: t.online })).sort((a, b) => a.name.localeCompare(b.name));
 			const currentHuddles: SidebarItem[] = (data.huddles ?? []).map((h: { id: string; name: string; host: string; participants: string[] }) => ({ id: h.id, name: h.name, kind: "huddle" as const, participants: h.participants }));
 			const pastItems: SidebarItem[] = (data.pastRooms ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, kind: "past" as const }));
 
@@ -901,7 +903,7 @@
 						onclick={() => { if (pulsingTeammates.includes(fmt.label)) { pulsingTeammates = pulsingTeammates.filter(n => n !== fmt.label); fetch("/api/dismiss-pulse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teammate: fmt.label }) }).catch(() => {}); } selectedIndex = sidebarItems.indexOf(item); }}
 						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {pulsingTeammates.includes(fmt.label) ? '' : (selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)')}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
 					>
-						<div>{fmt.label} {#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if} {#if item.model} <span class="sidebar-meta" style="font-size: 9px; color: #666; font-family: Menlo, monospace; font-weight: bold;">{item.model}</span>{/if}</div>
+						<div><span class="teammate-led" style="display: inline-block; width: 4px; height: 4px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: {item.online ? '#4ade80' : '#555'}; {item.online ? 'box-shadow: 0 0 4px #4ade80, 0 0 8px #4ade8066;' : ''}"></span><span style="{item.online ? '' : 'color: #555;'}">{fmt.label}</span> {#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if} {#if item.model} <span class="sidebar-meta" style="font-size: 9px; color: #666; font-family: Menlo, monospace; font-weight: bold;">{item.model}</span>{/if}</div>
 						<span class="sidebar-actions">
 							<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); dismissTeammate(fmt.label); }} title="Archive"><LucideArchive width={14} height={14} style="color: {archiveFlashName === fmt.label ? '#7a5e4a' : ''}" /></button>
 							<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); copyRoom(item.id); }} title="Copy"><LucideFiles width={14} height={14} style="color: {copyFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>

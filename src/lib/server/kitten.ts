@@ -121,6 +121,29 @@ export function sendToKitty(
 	return work.then(() => result);
 }
 
+export async function getAliveTeammates(): Promise<Set<string>> {
+	const socket = await discoverSocket();
+	if (!socket) return new Set();
+	try {
+		const { stdout } = await execFileAsync(KITTEN, ["@", "--to", socket, "ls"], { timeout: 5000 });
+		const data = JSON.parse(stdout);
+		const alive = new Set<string>();
+		if (Array.isArray(data)) {
+			for (const osWindow of data) {
+				for (const tab of osWindow.tabs ?? []) {
+					const teammateVar = Object.entries(tab.windows?.[0]?.user_vars ?? {}).find(
+						([k]) => k === "teammate"
+					);
+					if (teammateVar) alive.add((teammateVar[1] as string).toLowerCase());
+				}
+			}
+		}
+		return alive;
+	} catch {
+		return new Set();
+	}
+}
+
 export async function isTabAlive(teammate: string): Promise<boolean> {
 	const socket = await discoverSocket();
 	if (!socket) return false;
