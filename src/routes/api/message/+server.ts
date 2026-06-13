@@ -49,6 +49,10 @@ export const POST: RequestHandler = async ({ request }) => {
 	const createdAt = new Date().toISOString();
 
 	let resolvedRoom = room === "direct-boss" ? `direct-${sender}` : room;
+	// REQ-257: offline-{name} placeholder from static roster → convert to direct-{name}
+	if (resolvedRoom.startsWith("offline-")) {
+		resolvedRoom = `direct-${resolvedRoom.replace("offline-", "")}`;
+	}
 	// REQ-78: resolve active room FIRST — prevents past/ghost rooms from intercepting short-form IDs
 	const activeRoom = resolveActiveRoom(resolvedRoom);
 	if (activeRoom) {

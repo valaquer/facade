@@ -237,6 +237,8 @@
 		}
 		const bareMatch = name.match(/^direct-([a-z]+)$/);
 		if (bareMatch) return { label: bareMatch[1], date: "" };
+		const offlineMatch = name.match(/^offline-([a-z]+)$/);
+		if (offlineMatch) return { label: offlineMatch[1], date: "" };
 		return { label: name, date: "" };
 	}
 

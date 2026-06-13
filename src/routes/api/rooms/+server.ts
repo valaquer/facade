@@ -54,7 +54,7 @@ export const GET: RequestHandler = async () => {
 		roomByName[name] = r.id;
 	}
 	const teammates = roster.map((name) => ({
-		id: roomByName[name] || `direct-${name}`,
+		id: roomByName[name] || `offline-${name}`,
 		name,
 		teammate: name,
 		model: modelMap[name] || "",
