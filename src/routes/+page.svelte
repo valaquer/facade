@@ -440,6 +440,8 @@
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
 		newMessage = "";
+		await tick();
+		resizeInput();
 		flushQueue();
 
 		try {
@@ -558,6 +560,7 @@
 		if (savedIds) { try { queuedMessageIds = JSON.parse(savedIds); } catch {} }
 		loadSidebar();
 		loadBookmarks();
+		resizeInput();
 		fetch("/api/livemirror-status").then(r => r.json()).then(d => { liveMirrorActive = d.active; }).catch(() => {});
 		fetch("/api/activity-mute").then(r => r.json()).then(d => { mutedEntries = d; }).catch(() => {});
 		fetch("/api/activity-deaf").then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {});
@@ -591,6 +594,12 @@
 
 	let inputRef: HTMLTextAreaElement | undefined = $state();
 	let notebookRef: HTMLTextAreaElement | undefined = $state();
+
+	function resizeInput() {
+		if (!inputRef) return;
+		inputRef.style.height = '0';
+		inputRef.style.height = Math.min(inputRef.scrollHeight, 200) + 'px';
+	}
 	let notebookSaveTimer: ReturnType<typeof setTimeout> | undefined;
 	let pulsePoller: ReturnType<typeof setInterval> | undefined;
 	let zombiePoller: ReturnType<typeof setInterval> | undefined;
@@ -1069,10 +1078,11 @@
 									bind:value={newMessage}
 									bind:this={inputRef}
 									onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+									oninput={resizeInput}
 									class="w-full bg-transparent outline-none resize-none"
 									rows="1"
 									placeholder=""
-									style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none; max-height: 200px; field-sizing: content;"
+									style="color: var(--color-text); font-family: var(--font-mono); font-size: 12px; font-weight: 300; border: none; max-height: 200px; overflow: hidden;"
 								></textarea>
 								<div style="height: 29px;"></div>
 							</div>
