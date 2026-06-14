@@ -803,6 +803,9 @@
 		try {
 			archiveFlashName = name;
 			pulsingTeammates = pulsingTeammates.filter(n => n !== name);
+			selectedIndex = 0;
+			const firstRoom = sidebarItems[0]?.id;
+			if (firstRoom) fetch("/api/preferences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ selectedRoom: firstRoom }) }).catch(() => {});
 			fetch("/api/dismiss-pulse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teammate: name }) }).catch(() => {});
 			await fetch("/api/rooms/deactivate", {
 				method: "POST",
@@ -820,6 +823,9 @@
 	async function archiveHuddle(roomId: string) {
 		try {
 			archiveFlashRoom = roomId;
+			selectedIndex = 0;
+			const firstRoom = sidebarItems[0]?.id;
+			if (firstRoom) fetch("/api/preferences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ selectedRoom: firstRoom }) }).catch(() => {});
 			await fetch("/api/archive-huddle", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
