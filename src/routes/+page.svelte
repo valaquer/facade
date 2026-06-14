@@ -257,7 +257,7 @@
 	let focusMode = $state(false);
 	let notebookOpen = $state(false);
 	let notebookText = $state('');
-	let queuedMessageIds = $state<string[]>([]);
+	let queuedMessageIds = $state<Record<string, string[]>>({});
 	let messageQueues = $state<Record<string, ChatMsg[]>>({});
 	let userScrolledUp = $state(false);
 	let loadingRoom = $state("");
@@ -376,12 +376,10 @@
 			messageQueues[convId] = [];
 			messageQueues = messageQueues;
 		}
-		pausedRoom = null;
 		userScrolledUp = false;
-		queuedMessageIds = [];
-		localStorage.removeItem('facade-queued-ids');
-		localStorage.removeItem('facade-paused-room');
-		if (convId?.startsWith("huddle-")) { stoppedHuddles.add(convId); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); }
+		if (convId) { delete queuedMessageIds[convId]; queuedMessageIds = queuedMessageIds; }
+		localStorage.setItem('facade-queued-ids', JSON.stringify(queuedMessageIds));
+		if (convId?.startsWith("huddle-")) { stoppedHuddles.add(convId); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = null; localStorage.removeItem('facade-paused-room'); }
 	}
 
 	async function rekindleZombies() {
@@ -424,7 +422,8 @@
 	function stepOne() {
 		const convId = selectedConvId;
 		const queue = convId ? (messageQueues[convId] ?? []) : [];
-		if (queue.length === 0) { if (currentRoomKind !== "huddle") { pausedRoom = null; localStorage.removeItem('facade-paused-room'); } queuedMessageIds = []; localStorage.removeItem('facade-queued-ids'); return; }
+		const roomIds = convId ? (queuedMessageIds[convId] ?? []) : [];
+		if (queue.length === 0) { if (currentRoomKind !== "huddle") { pausedRoom = null; localStorage.removeItem('facade-paused-room'); } if (convId) { delete queuedMessageIds[convId]; queuedMessageIds = queuedMessageIds; } localStorage.setItem('facade-queued-ids', JSON.stringify(queuedMessageIds)); return; }
 		const batch: ChatMsg[] = [];
 		let remaining = [...queue];
 		while (remaining.length > 0) {
@@ -435,7 +434,7 @@
 		messageQueues[convId!] = remaining;
 		messageQueues = messageQueues;
 		const batchIds = new Set(batch.map(m => m.id));
-		queuedMessageIds = queuedMessageIds.filter(id => !batchIds.has(id));
+		if (convId) { queuedMessageIds[convId] = roomIds.filter(id => !batchIds.has(id)); queuedMessageIds = queuedMessageIds; }
 		localStorage.setItem('facade-queued-ids', JSON.stringify(queuedMessageIds));
 		if (convId && batch.length > 0) {
 			const lastReal = batch.findLast(m => !m.response);
@@ -450,8 +449,8 @@
 		}
 		if (remaining.length === 0) {
 			if (currentRoomKind !== "huddle") { pausedRoom = null; localStorage.removeItem('facade-paused-room'); }
-			queuedMessageIds = [];
-			localStorage.removeItem('facade-queued-ids');
+			if (convId) { delete queuedMessageIds[convId]; queuedMessageIds = queuedMessageIds; }
+			localStorage.setItem('facade-queued-ids', JSON.stringify(queuedMessageIds));
 		}
 	}
 
@@ -462,7 +461,7 @@
 		await tick();
 		resizeInput();
 		flushQueue();
-		if (currentRoomKind === "huddle") { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); stoppedHuddles.delete(selectedConvId); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); }
+		if (currentRoomKind === "huddle") { stoppedHuddles.delete(selectedConvId); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); }
 
 		try {
 			const res = await fetch("/api/message", {
@@ -509,10 +508,11 @@
 					response: data.response === true,
 					summary: data.summary || "",
 				};
-				if ((convId === pausedRoom || (convId === selectedConvId && loadingRoom)) && msg.sender !== "boss") {
+				if (msg.sender !== "boss" && ((convId.startsWith("huddle-") && !stoppedHuddles.has(convId)) || convId === pausedRoom || (convId === selectedConvId && loadingRoom))) {
 					messageQueues[convId] = [...(messageQueues[convId] ?? []), msg];
 					messageQueues = messageQueues;
-					queuedMessageIds = [...queuedMessageIds, msg.id];
+					queuedMessageIds[convId] = [...(queuedMessageIds[convId] ?? []), msg.id];
+					queuedMessageIds = queuedMessageIds;
 					localStorage.setItem('facade-queued-ids', JSON.stringify(queuedMessageIds));
 				} else {
 					conversations[convId] = [...(conversations[convId] ?? []), msg];
@@ -575,10 +575,9 @@
 	}
 
 	onMount(() => {
-		pausedRoom = localStorage.getItem('facade-paused-room');
 		try { const sh = localStorage.getItem('facade-stopped-huddles'); if (sh) stoppedHuddles = new Set(JSON.parse(sh)); } catch {}
 		const savedIds = localStorage.getItem('facade-queued-ids');
-		if (savedIds) { try { queuedMessageIds = JSON.parse(savedIds); } catch {} }
+		if (savedIds) { try { const parsed = JSON.parse(savedIds); if (Array.isArray(parsed)) { queuedMessageIds = {}; } else { queuedMessageIds = parsed; } } catch {} }
 		loadSidebar();
 		loadBookmarks();
 		resizeInput();
@@ -643,8 +642,7 @@
 		savePrefs();
 		userScrolledUp = false;
 		if (room.startsWith("huddle-") && !stoppedHuddles.has(room)) {
-			pausedRoom = room;
-			localStorage.setItem('facade-paused-room', room);
+			// Huddle pause is implicit — all huddles paused unless in stoppedHuddles
 		}
 		loadingRoom = room;
 		fetch(`/api/messages?room=${room}`)
@@ -653,9 +651,11 @@
 				if (loadingRoom !== room) return;
 				const parsed = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call", response: m.type === "response" }));
 				// If paused and have queued IDs, split: queued go to messageQueues, rest to conversations
-				if (pausedRoom === room && queuedMessageIds.length > 0) {
-					const queued = parsed.filter((m: ChatMsg) => queuedMessageIds.includes(m.id));
-					const rest = parsed.filter((m: ChatMsg) => !queuedMessageIds.includes(m.id));
+				const roomQueuedIds = queuedMessageIds[room] ?? [];
+				if ((room.startsWith("huddle-") && !stoppedHuddles.has(room)) && roomQueuedIds.length > 0) {
+					const queuedSet = new Set(roomQueuedIds);
+					const queued = parsed.filter((m: ChatMsg) => queuedSet.has(m.id));
+					const rest = parsed.filter((m: ChatMsg) => !queuedSet.has(m.id));
 					conversations[room] = rest;
 					conversations = conversations;
 					messageQueues[room] = queued;
@@ -704,6 +704,9 @@
 		} else if (e.key === 'Escape' && document.activeElement === inputRef) {
 			e.preventDefault();
 			inputRef?.blur();
+		} else if (e.key === ' ' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((document.activeElement as HTMLElement)?.tagName ?? '')) {
+			e.preventDefault();
+			stepOne();
 		}
 	}
 
@@ -716,6 +719,7 @@
 	let currentMessages = $derived(selectedConvId ? (conversations[selectedConvId] ?? []).filter((m) => !isTokenNoise(m)) : []);
 	let chatMessages = $derived(currentMessages.filter((m) => !m.toolCall && !m.response));
 	let activityCards = $derived(currentMessages.filter((m) => m.toolCall || m.response));
+	let isCurrentRoomPaused = $derived((selectedConvId?.startsWith("huddle-") && !stoppedHuddles.has(selectedConvId)) || pausedRoom === selectedConvId);
 
 	$effect(() => {
 		chatMessages;
@@ -1066,8 +1070,8 @@
 				<div></div>
 				<div class="control-strip">
 					<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} class:pulsing={pulsingTeammates.length > 0} title="Live mirror"></span>
-				<button class="control-btn" onclick={() => { if (pausedRoom !== selectedConvId) { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); if (selectedConvId.startsWith("huddle-")) { stoppedHuddles.delete(selectedConvId); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } } else { stepOne(); } }} title={pausedRoom === selectedConvId ? ((messageQueues[selectedConvId]?.filter(m => !m.response).length ?? 0) > 0 ? "Next message" : "Paused") : "Pause"}>
-					{#if pausedRoom === selectedConvId}
+				<button class="control-btn" onclick={() => { if (!isCurrentRoomPaused) { if (selectedConvId.startsWith("huddle-")) { stoppedHuddles.delete(selectedConvId); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } } else { stepOne(); } }} title={isCurrentRoomPaused ? ((messageQueues[selectedConvId]?.filter(m => !m.response).length ?? 0) > 0 ? "Next message" : "Paused") : "Pause"}>
+					{#if isCurrentRoomPaused}
 						<LucidePlay width={14} height={14} style="color: #7a5e4a;" />
 						{@const queueCount = (messageQueues[selectedConvId] ?? []).filter(m => !m.response).length}
 						{#if queueCount > 0}<span class="queue-badge">{queueCount}</span>{/if}
@@ -1076,7 +1080,7 @@
 					{/if}
 				</button>
 				<button class="control-btn" onclick={() => flushQueue()} title="Stop — catch up to latest">
-					<LucideSquare width={14} height={14} style="color: {pausedRoom === selectedConvId ? '#7a5e4a' : '#555'}; fill: {pausedRoom === selectedConvId ? '#7a5e4a' : '#555'};" />
+					<LucideSquare width={14} height={14} style="color: {isCurrentRoomPaused ? '#7a5e4a' : '#555'}; fill: {isCurrentRoomPaused ? '#7a5e4a' : '#555'};" />
 					</button>
 				<button class="control-btn" onclick={sendPauseMessage} disabled={pausing} title="Pause — alert room">
 					<LucideX width={18} height={18} style="color: {pauseError ? '#e74c3c' : '#555'};" />
