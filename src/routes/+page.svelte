@@ -243,7 +243,7 @@
 	}
 
 	let sidebarItems = $state<SidebarItem[]>([]);
-	let selectedIndex = $state(0);
+	let selectedIndex = $state(-1);
 	let conversations = $state<Record<string, ChatMsg[]>>({});
 	let newMessage = $state("");
 	let eventSource: EventSource | undefined;
