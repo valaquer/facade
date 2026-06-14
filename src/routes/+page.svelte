@@ -1173,9 +1173,7 @@
 		<!-- Gap col 6 -->
 		<div></div>
 	{:else}
-		<div style="grid-column: 3 / 7; display: flex; align-items: center; justify-content: center; background: var(--color-bg);">
-			<p style="color: var(--color-text-muted); font-size: 12px;">Select a teammate</p>
-		</div>
+		<div style="grid-column: 3 / 7; background: var(--color-bg);"></div>
 	{/if}
 </div>
 
