@@ -707,6 +707,9 @@
 		} else if (e.key === ' ' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((document.activeElement as HTMLElement)?.tagName ?? '')) {
 			e.preventDefault();
 			stepOne();
+		} else if (e.ctrlKey && e.key === 'ArrowRight' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((document.activeElement as HTMLElement)?.tagName ?? '')) {
+			e.preventDefault();
+			stepOne();
 		}
 	}
 
