@@ -434,6 +434,9 @@
 		}
 		messageQueues[convId!] = remaining;
 		messageQueues = messageQueues;
+		const batchIds = new Set(batch.map(m => m.id));
+		queuedMessageIds = queuedMessageIds.filter(id => !batchIds.has(id));
+		localStorage.setItem('facade-queued-ids', JSON.stringify(queuedMessageIds));
 		if (convId && batch.length > 0) {
 			const lastReal = batch.findLast(m => !m.response);
 			conversations[convId] = [...(conversations[convId] ?? []), ...batch];
