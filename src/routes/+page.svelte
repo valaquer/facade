@@ -704,10 +704,7 @@
 		} else if (e.key === 'Escape' && document.activeElement === inputRef) {
 			e.preventDefault();
 			inputRef?.blur();
-		} else if (e.key === ' ' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((document.activeElement as HTMLElement)?.tagName ?? '')) {
-			e.preventDefault();
-			stepOne();
-		} else if (e.ctrlKey && e.key === 'ArrowRight' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((document.activeElement as HTMLElement)?.tagName ?? '')) {
+		} else if (e.ctrlKey && e.key === 'ArrowRight') {
 			e.preventDefault();
 			stepOne();
 		}
