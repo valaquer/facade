@@ -680,7 +680,7 @@
 		if (e.ctrlKey && e.key === 'ArrowDown') {
 			e.preventDefault();
 			if (totalNavItems === 0) return;
-			selectedIndex = (selectedIndex + 1) % totalNavItems;
+			selectedIndex = Math.min(selectedIndex + 1, totalNavItems - 1);
 			const pbc = preBookmarkCount;
 			if (selectedIndex >= pbc && selectedIndex < pbc + bookmarks.length) {
 				pendingScrollMessageId = bookmarks[selectedIndex - pbc]?.messageId ?? null;
@@ -688,7 +688,7 @@
 		} else if (e.ctrlKey && e.key === 'ArrowUp') {
 			e.preventDefault();
 			if (totalNavItems === 0) return;
-			selectedIndex = (selectedIndex - 1 + totalNavItems) % totalNavItems;
+			selectedIndex = Math.max(selectedIndex - 1, 0);
 			const pbc = preBookmarkCount;
 			if (selectedIndex >= pbc && selectedIndex < pbc + bookmarks.length) {
 				pendingScrollMessageId = bookmarks[selectedIndex - pbc]?.messageId ?? null;
