@@ -17,6 +17,8 @@
 	import LucideFiles from '~icons/lucide/files';
 	import LucideArchive from '~icons/lucide/archive';
 	import LucideLibrary from '~icons/lucide/library';
+	import LucideMilestone from '~icons/lucide/milestone';
+	import LucideConstruction from '~icons/lucide/construction';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -1025,9 +1027,6 @@
 			{/if}
 		{/if}
 		</div>
-		<div onclick={() => window.open('/markwhen-fork.html', '_blank')} style="padding: 0.75rem 1rem; border-top: 1px dashed var(--color-bg-step4); cursor: pointer; font-size: 11px; color: var(--color-text-muted);">
-			Fire up Markwhen
-		</div>
 	</div>
 
 	<!-- Gap col 2 -->
@@ -1098,9 +1097,14 @@
 				<button class="control-btn" onclick={async () => { notebookOpen = !notebookOpen; fetch('/api/notebook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notebookOpen }) }); if (notebookOpen) { await tick(); notebookRef?.focus(); } else { inputRef?.focus(); } }} title={notebookOpen ? "Close notebook" : "Open notebook"}>
 						<LucideNotebookPen width={14} height={14} style="color: {notebookOpen ? '#7a5e4a' : '#555'};" />
 					</button>
-				<span style="border-left: 1px dashed #282a30; height: 14px; margin: 0 4px;"></span>
 				<button class="control-btn" onclick={() => window.open('/wiki', '_blank')} title="Wiki">
 					<LucideLibrary width={14} height={14} style="color: #555;" />
+				</button>
+				<button class="control-btn" onclick={() => window.open('/markwhen-fork.html', '_blank')} title="Timeline">
+					<LucideMilestone width={14} height={14} style="color: #555;" />
+				</button>
+				<button class="control-btn" onclick={() => window.open('http://192.168.0.186:51740/styleguide', '_blank')} title="Workbench">
+					<LucideConstruction width={14} height={14} style="color: #555;" />
 				</button>
 				</div>
 			</div>
