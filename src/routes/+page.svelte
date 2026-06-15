@@ -354,21 +354,22 @@
 
 	async function loadSidebar() {
 		try {
-			const [roomsRes, prefsRes] = await Promise.all([
-				fetch("/api/rooms"),
-				fetch("/api/preferences"),
-			]);
-			const data = await roomsRes.json();
-			const prefs = await prefsRes.json();
+			const currentRoomId = selectedConvId;
+			const isInitialLoad = !sidebarLoaded;
+			const fetches: Promise<Response>[] = [fetch("/api/rooms")];
+			if (isInitialLoad) fetches.push(fetch("/api/preferences"));
+			const responses = await Promise.all(fetches);
+			const data = await responses[0].json();
+			const prefs = isInitialLoad ? await responses[1].json() : null;
 			const teammates = (data.teammates ?? []).map((t: { id: string; name: string; model: string; online: boolean }) => ({ id: t.id, name: t.name, model: t.model || "", kind: "teammate" as const, online: t.online })).sort((a, b) => a.name.localeCompare(b.name));
 			const currentHuddles: SidebarItem[] = (data.huddles ?? []).map((h: { id: string; name: string; host: string; participants: string[] }) => ({ id: h.id, name: h.name, kind: "huddle" as const, participants: h.participants }));
 			const pastItems: SidebarItem[] = (data.pastRooms ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, kind: "past" as const }));
 
 			const items = [...teammates, ...currentHuddles, ...pastItems];
-			let newIndex = selectedIndex;
-			if (newIndex >= items.length + bookmarks.length) newIndex = 0;
-			if (prefs.selectedRoom) {
-				const idx = items.findIndex((i) => i.id === prefs.selectedRoom);
+			const roomToFind = isInitialLoad ? (prefs?.selectedRoom ?? "") : currentRoomId;
+			let newIndex = 0;
+			if (roomToFind) {
+				const idx = items.findIndex((i) => i.id === roomToFind);
 				if (idx >= 0) {
 					const pastStart = items.findIndex(x => x.kind === "past");
 					newIndex = (pastStart >= 0 && idx >= pastStart) ? idx + bookmarks.length : idx;
@@ -562,7 +563,7 @@
 			} else if (data.type === "zombie_update") {
 				zombieCount = data.zombieCount ?? 0;
 			} else if (data.type === "huddle_update") {
-				loadSidebar();
+				if (!nuking) loadSidebar();
 				fetchZombieCount();
 			} else if (data.type === "message") {
 				const convId = data.conversationId;
