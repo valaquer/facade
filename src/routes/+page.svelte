@@ -1089,7 +1089,9 @@
 					{#if isCurrentRoomPaused}
 						<LucidePlay width={14} height={14} style="color: #7a5e4a;" />
 						{@const queueCount = (messageQueues[selectedConvId] ?? []).filter(m => !m.response).length}
-						{#if queueCount > 0}<span class="queue-badge">{queueCount}</span>{/if}
+						{@const tens = queueCount >= 10 ? String(Math.floor(queueCount / 10)) : ''}
+						{@const ones = queueCount > 0 ? String(queueCount % 10) : ''}
+						<span class="queue-digits"><span class="queue-digit" style="opacity: {tens ? 1 : 0.25};">{tens}</span><span class="queue-digit" style="opacity: {ones ? 1 : 0.25};">{ones}</span></span>
 					{:else}
 						<LucidePause width={14} height={14} style="color: #555;" />
 					{/if}
@@ -1353,11 +1355,22 @@
 	.control-btn:hover {
 		opacity: 1;
 	}
-	.queue-badge {
-		font-size: 10px;
-		color: #7a5e4a;
-		font-family: var(--font-mono);
+	.queue-digits {
+		display: inline-flex;
+		gap: 2px;
 		margin-left: 2px;
+	}
+	.queue-digit {
+		display: inline-block;
+		width: 10px;
+		height: 14px;
+		border: 1px solid #555;
+		border-radius: 2px;
+		font-size: 9px;
+		font-family: var(--font-mono);
+		color: #7a5e4a;
+		text-align: center;
+		line-height: 14px;
 	}
 	.control-led {
 		width: 8px;
