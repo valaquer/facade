@@ -1440,18 +1440,19 @@
 		display: inline-flex;
 		gap: 2px;
 		margin-left: 2px;
+		align-items: center;
 	}
 	.queue-digit {
 		display: inline-block;
 		width: 10px;
-		height: 14px;
+		height: 12px;
 		border: 1px solid #555;
 		border-radius: 2px;
 		font-size: 9px;
 		font-family: var(--font-mono);
 		color: #7a5e4a;
 		text-align: center;
-		line-height: 14px;
+		line-height: 12px;
 	}
 	.control-led {
 		width: 8px;
