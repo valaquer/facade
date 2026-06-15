@@ -1089,9 +1089,10 @@
 					{#if isCurrentRoomPaused}
 						<LucidePlay width={14} height={14} style="color: #7a5e4a;" />
 						{@const queueCount = (messageQueues[selectedConvId] ?? []).filter(m => !m.response).length}
-						{@const tens = queueCount >= 10 ? String(Math.floor(queueCount / 10)) : ''}
+						{@const hundreds = queueCount >= 100 ? String(Math.floor(queueCount / 100)) : ''}
+						{@const tens = queueCount >= 10 ? String(Math.floor((queueCount % 100) / 10)) : ''}
 						{@const ones = queueCount > 0 ? String(queueCount % 10) : ''}
-						<span class="queue-digits"><span class="queue-digit" style="opacity: {tens ? 1 : 0.25};">{tens}</span><span class="queue-digit" style="opacity: {ones ? 1 : 0.25};">{ones}</span></span>
+						<span class="queue-digits"><span class="queue-digit" style="opacity: {hundreds ? 1 : 0.25};">{hundreds}</span><span class="queue-digit" style="opacity: {tens ? 1 : 0.25};">{tens}</span><span class="queue-digit" style="opacity: {ones ? 1 : 0.25};">{ones}</span></span>
 					{:else}
 						<LucidePause width={14} height={14} style="color: #555;" />
 					{/if}
