@@ -3,8 +3,6 @@
 	import { onMount, onDestroy, tick } from 'svelte';
 	import LucidePlay from '~icons/lucide/play';
 	import LucidePause from '~icons/lucide/pause';
-	import LucideSquare from '~icons/lucide/square';
-	import LucideX from '~icons/lucide/x';
 	import LucideRadio from '~icons/lucide/radio';
 	import LucideMessageSquareOff from '~icons/lucide/message-square-off';
 	import LucideVolumeX from '~icons/lucide/volume-x';
@@ -263,8 +261,6 @@
 	let messageQueues = $state<Record<string, ChatMsg[]>>({});
 	let userScrolledUp = $state(false);
 	let loadingRoom = $state("");
-	let pausing = $state(false);
-	let pauseError = $state(false);
 	let broadcastedMsgId = $state<string | null>(null);
 	let rekindling = $state(false);
 	let rekindleFlash = $state(false);
@@ -381,7 +377,7 @@
 		userScrolledUp = false;
 		if (convId) { delete queuedMessageIds[convId]; queuedMessageIds = queuedMessageIds; }
 		localStorage.setItem('facade-queued-ids', JSON.stringify(queuedMessageIds));
-		if (convId?.startsWith("huddle-")) { stoppedHuddles.add(convId); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = null; localStorage.removeItem('facade-paused-room'); }
+		if (convId?.startsWith("huddle-")) { stoppedHuddles.add(convId); stoppedHuddles = new Set(stoppedHuddles); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = null; localStorage.removeItem('facade-paused-room'); }
 	}
 
 	async function rekindleZombies() {
@@ -403,23 +399,6 @@
 		}
 	}
 
-	async function sendPauseMessage() {
-		if (pausing) return;
-		pausing = true;
-		try {
-			const res = await fetch("/api/message", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ sender: "boss", room: selectedConvId, body: "Everybody, pause." }),
-			});
-			if (!res.ok) throw new Error();
-		} catch {
-			pauseError = true;
-			setTimeout(() => pauseError = false, 2000);
-		} finally {
-			pausing = false;
-		}
-	}
 
 	function stepOne() {
 		const convId = selectedConvId;
@@ -463,7 +442,7 @@
 		await tick();
 		resizeInput();
 		flushQueue();
-		if (currentRoomKind === "huddle") { stoppedHuddles.delete(selectedConvId); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); }
+		if (currentRoomKind === "huddle") { stoppedHuddles.delete(selectedConvId); stoppedHuddles = new Set(stoppedHuddles); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); }
 
 		try {
 			const res = await fetch("/api/message", {
@@ -1085,7 +1064,7 @@
 				<div></div>
 				<div class="control-strip">
 					<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} class:pulsing={pulsingTeammates.length > 0} title="Live mirror"></span>
-				<button class="control-btn" onclick={() => { if (!isCurrentRoomPaused) { if (selectedConvId.startsWith("huddle-")) { stoppedHuddles.delete(selectedConvId); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } } else { stepOne(); } }} title={isCurrentRoomPaused ? ((messageQueues[selectedConvId]?.filter(m => !m.response).length ?? 0) > 0 ? "Next message" : "Paused") : "Pause"}>
+				<button class="control-btn" onclick={() => { if (!isCurrentRoomPaused) { if (selectedConvId.startsWith("huddle-")) { stoppedHuddles.delete(selectedConvId); stoppedHuddles = new Set(stoppedHuddles); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } } else { stepOne(); } }} title={isCurrentRoomPaused ? ((messageQueues[selectedConvId]?.filter(m => !m.response).length ?? 0) > 0 ? "Next message" : "Paused") : "Pause"}>
 					{#if isCurrentRoomPaused}
 						<LucidePlay width={14} height={14} style="color: #7a5e4a;" />
 						{@const queueCount = (messageQueues[selectedConvId] ?? []).filter(m => !m.response).length}
@@ -1096,12 +1075,6 @@
 					{:else}
 						<LucidePause width={14} height={14} style="color: #555;" />
 					{/if}
-				</button>
-				<button class="control-btn" onclick={() => flushQueue()} title="Stop — catch up to latest">
-					<LucideSquare width={14} height={14} style="color: {isCurrentRoomPaused ? '#7a5e4a' : '#555'}; fill: {isCurrentRoomPaused ? '#7a5e4a' : '#555'};" />
-					</button>
-				<button class="control-btn" onclick={sendPauseMessage} disabled={pausing} title="Pause — alert room">
-					<LucideX width={18} height={18} style="color: {pauseError ? '#e74c3c' : '#555'};" />
 				</button>
 				<button class="control-btn" onclick={rekindleZombies} disabled={rekindling} title="Rekindle — relight all zombie rooms">
 					<span class={rekindleFlash || zombieCount > 0 ? 'zap-active' : ''}><LucideZap width={14} height={14} style="color: {rekindleFlash || zombieCount > 0 ? '#7a5e4a' : '#555'};" /></span>
