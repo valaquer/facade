@@ -526,6 +526,7 @@
 		await tick();
 		resizeInput();
 		flushQueue();
+		if (rewindIndex !== null) { rewindIndex = null; clearRewindPosition(selectedConvId); }
 		if (currentRoomKind === "huddle") { stoppedHuddles.delete(selectedConvId); stoppedHuddles = new Set(stoppedHuddles); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); }
 
 		try {
@@ -534,7 +535,7 @@
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ sender: "boss", body: content, room: selectedConvId }),
 			});
-
+			setTimeout(() => { if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 50);
 		} catch {
 			// ignore send errors
 		}
@@ -778,7 +779,7 @@
 		} else if (e.ctrlKey && e.key === 'ArrowRight') {
 			e.preventDefault();
 			if (rewindIndex !== null) {
-				if (rewindIndex >= chatMessages.length - 1) { rewindIndex = null; clearRewindPosition(selectedConvId); if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }
+				if (rewindIndex >= chatMessages.length - 1) { rewindIndex = null; clearRewindPosition(selectedConvId); setTimeout(() => { if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 50); }
 				else { rewindIndex++; saveRewindPosition(selectedConvId, chatMessages[rewindIndex].id); if (messagesContainer) messagesContainer.scrollTop = 0; }
 			} else { stepOne(); }
 		} else if (e.ctrlKey && e.key === 'ArrowLeft') {
@@ -789,7 +790,7 @@
 			e.preventDefault();
 			rewindIndex = null;
 			clearRewindPosition(selectedConvId);
-			if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+			setTimeout(() => { if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 50);
 		}
 	}
 
