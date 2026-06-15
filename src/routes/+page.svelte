@@ -2,7 +2,6 @@
 	import { marked } from 'marked';
 	import { onMount, onDestroy, tick } from 'svelte';
 	import LucidePlay from '~icons/lucide/play';
-	import LucidePause from '~icons/lucide/pause';
 	import LucideRadio from '~icons/lucide/radio';
 	import LucideMessageSquareOff from '~icons/lucide/message-square-off';
 	import LucideVolumeX from '~icons/lucide/volume-x';
@@ -10,6 +9,7 @@
 	import LucideMaximize2 from '~icons/lucide/maximize-2';
 	import LucideMinimize2 from '~icons/lucide/minimize-2';
 	import LucideNotebookPen from '~icons/lucide/notebook-pen';
+	import LucideX from '~icons/lucide/x';
 	import LucideEarOff from '~icons/lucide/ear-off';
 	import LucideFiles from '~icons/lucide/files';
 	import LucideBookmark from '~icons/lucide/bookmark';
@@ -259,6 +259,8 @@
 	let notebookText = $state('');
 	let queuedMessageIds = $state<Record<string, string[]>>({});
 	let messageQueues = $state<Record<string, ChatMsg[]>>({});
+	let pausing = $state(false);
+	let pauseError = $state(false);
 	let userScrolledUp = $state(false);
 	let loadingRoom = $state("");
 	let broadcastedMsgId = $state<string | null>(null);
@@ -399,6 +401,23 @@
 		}
 	}
 
+	async function sendPauseMessage() {
+		if (pausing) return;
+		pausing = true;
+		try {
+			const res = await fetch("/api/message", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ sender: "boss", room: selectedConvId, body: "Everybody, pause." }),
+			});
+			if (!res.ok) throw new Error();
+		} catch {
+			pauseError = true;
+			setTimeout(() => pauseError = false, 2000);
+		} finally {
+			pausing = false;
+		}
+	}
 
 	function stepOne() {
 		const convId = selectedConvId;
@@ -1065,16 +1084,17 @@
 				<div class="control-strip">
 					<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} class:pulsing={pulsingTeammates.length > 0} title="Live mirror"></span>
 				<button class="control-btn" onclick={() => { if (!isCurrentRoomPaused) { if (selectedConvId.startsWith("huddle-")) { stoppedHuddles.delete(selectedConvId); stoppedHuddles = new Set(stoppedHuddles); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } } else { stepOne(); } }} title={isCurrentRoomPaused ? ((messageQueues[selectedConvId]?.filter(m => !m.response).length ?? 0) > 0 ? "Next message" : "Paused") : "Pause"}>
-					{#if isCurrentRoomPaused}
-						<LucidePlay width={14} height={14} style="color: #7a5e4a;" />
+						<LucidePlay width={14} height={14} style="color: {isCurrentRoomPaused ? '#7a5e4a' : '#555'};" />
+					{#if true}
 						{@const queueCount = (messageQueues[selectedConvId] ?? []).filter(m => !m.response).length}
 						{@const hundreds = queueCount >= 100 ? String(Math.floor(queueCount / 100)) : ''}
 						{@const tens = queueCount >= 10 ? String(Math.floor((queueCount % 100) / 10)) : ''}
 						{@const ones = queueCount > 0 ? String(queueCount % 10) : ''}
 						<span class="queue-digits"><span class="queue-digit" style="opacity: {hundreds ? 1 : 0.25};">{hundreds}</span><span class="queue-digit" style="opacity: {tens ? 1 : 0.25};">{tens}</span><span class="queue-digit" style="opacity: {ones ? 1 : 0.25};">{ones}</span></span>
-					{:else}
-						<LucidePause width={14} height={14} style="color: #555;" />
 					{/if}
+				</button>
+				<button class="control-btn" onclick={sendPauseMessage} disabled={pausing} title="Pause — alert room">
+					<LucideX width={18} height={18} style="color: {pauseError ? '#e74c3c' : '#555'};" />
 				</button>
 				<button class="control-btn" onclick={rekindleZombies} disabled={rekindling} title="Rekindle — relight all zombie rooms">
 					<span class={rekindleFlash || zombieCount > 0 ? 'zap-active' : ''}><LucideZap width={14} height={14} style="color: {rekindleFlash || zombieCount > 0 ? '#7a5e4a' : '#555'};" /></span>
