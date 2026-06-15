@@ -18,6 +18,7 @@
 	import LucideLibrary from '~icons/lucide/library';
 	import LucideMilestone from '~icons/lucide/milestone';
 	import LucideConstruction from '~icons/lucide/construction';
+	import LucidePower from '~icons/lucide/power';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -944,6 +945,24 @@
 			setTimeout(() => { archiveFlashRoom = ""; }, 1500);
 		} catch {}
 	}
+	let nuking = $state(false);
+	async function nukeAll() {
+		if (nuking) return;
+		nuking = true;
+		try {
+			selectedIndex = 0;
+			const onlineTeammates = sidebarItems.filter(x => x.kind === "teammate" && x.online).map(x => x.name);
+			const activeHuddles = sidebarItems.filter(x => x.kind === "huddle").map(x => x.id);
+			await Promise.all([
+				...onlineTeammates.map(name => fetch("/api/rooms/deactivate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) }).catch(() => {})),
+				...activeHuddles.map(roomId => fetch("/api/archive-huddle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId }) }).catch(() => {})),
+			]);
+			await loadSidebar();
+		} finally {
+			nuking = false;
+		}
+	}
+
 	async function copyRoom(roomId: string) {
 		try {
 			const res = await fetch("/api/copy-room", {
@@ -1204,6 +1223,9 @@
 				</button>
 				<button class="control-btn" onclick={() => window.open('http://192.168.0.186:51740/styleguide', '_blank')} title="Workbench">
 					<LucideConstruction width={14} height={14} style="color: #555;" />
+				</button>
+				<button class="control-btn" onclick={nukeAll} disabled={nuking} title="Nuke — close all teammates and huddles">
+					<LucidePower width={14} height={14} style="color: {nuking ? '#7a5e4a' : '#555'};" />
 				</button>
 				</div>
 			</div>
