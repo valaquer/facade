@@ -257,6 +257,33 @@
 	let sidebarLoaded = $state(false);
 	let focusMode = $state(false);
 	let rewindIndex = $state<number | null>(null);
+
+	function saveRewindPosition(room: string, messageId: string) {
+		try {
+			const positions = JSON.parse(localStorage.getItem('facade-rewind-positions') ?? '{}');
+			positions[room] = messageId;
+			localStorage.setItem('facade-rewind-positions', JSON.stringify(positions));
+		} catch {}
+	}
+
+	function clearRewindPosition(room: string) {
+		try {
+			const positions = JSON.parse(localStorage.getItem('facade-rewind-positions') ?? '{}');
+			delete positions[room];
+			localStorage.setItem('facade-rewind-positions', JSON.stringify(positions));
+		} catch {}
+	}
+
+	function restoreRewindPosition(room: string, messages: ChatMsg[]): number | null {
+		try {
+			const positions = JSON.parse(localStorage.getItem('facade-rewind-positions') ?? '{}');
+			const storedId = positions[room];
+			if (!storedId) return null;
+			const idx = messages.findIndex(m => m.id === storedId);
+			if (idx === -1) { clearRewindPosition(room); return null; }
+			return idx;
+		} catch { return null; }
+	}
 	let notebookOpen = $state(false);
 	let notebookText = $state('');
 	let queuedMessageIds = $state<Record<string, string[]>>({});
@@ -678,7 +705,6 @@
 		if (!room || room === prevRoom) return;
 		prevRoom = room;
 		savePrefs();
-		rewindIndex = null;
 		userScrolledUp = false;
 		if (room.startsWith("huddle-") && !stoppedHuddles.has(room)) {
 			// Huddle pause is implicit — all huddles paused unless in stoppedHuddles
@@ -704,9 +730,15 @@
 					conversations = conversations;
 				}
 				loadingRoom = "";
-				// Scroll to bottom on initial load
+				// Restore rewind position if one was saved for this room
+				const visibleMessages = (conversations[room] ?? []).filter((m: ChatMsg) => !isTokenNoise(m) && !m.toolCall && !m.response);
+				const restored = restoreRewindPosition(room, visibleMessages);
+				rewindIndex = restored;
+				// Scroll to bottom on initial load (unless spotlight restored)
 				setTimeout(() => {
-					{
+					if (rewindIndex !== null) {
+						if (messagesContainer) messagesContainer.scrollTop = 0;
+					} else {
 						if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
 						if (activityContainer) activityContainer.scrollTop = activityContainer.scrollHeight;
 					}
@@ -746,16 +778,17 @@
 		} else if (e.ctrlKey && e.key === 'ArrowRight') {
 			e.preventDefault();
 			if (rewindIndex !== null) {
-				if (rewindIndex >= chatMessages.length - 1) { rewindIndex = null; if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }
-				else { rewindIndex++; if (messagesContainer) messagesContainer.scrollTop = 0; }
+				if (rewindIndex >= chatMessages.length - 1) { rewindIndex = null; clearRewindPosition(selectedConvId); if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }
+				else { rewindIndex++; saveRewindPosition(selectedConvId, chatMessages[rewindIndex].id); if (messagesContainer) messagesContainer.scrollTop = 0; }
 			} else { stepOne(); }
 		} else if (e.ctrlKey && e.key === 'ArrowLeft') {
 			e.preventDefault();
-			if (rewindIndex !== null) { if (rewindIndex > 0) { rewindIndex--; if (messagesContainer) messagesContainer.scrollTop = 0; } }
-			else { rewindIndex = Math.max(0, chatMessages.length - 2); if (messagesContainer) messagesContainer.scrollTop = 0; }
+			if (rewindIndex !== null) { if (rewindIndex > 0) { rewindIndex--; saveRewindPosition(selectedConvId, chatMessages[rewindIndex].id); if (messagesContainer) messagesContainer.scrollTop = 0; } }
+			else { rewindIndex = Math.max(0, chatMessages.length - 2); saveRewindPosition(selectedConvId, chatMessages[rewindIndex].id); if (messagesContainer) messagesContainer.scrollTop = 0; }
 		} else if (e.key === 'Escape' && rewindIndex !== null) {
 			e.preventDefault();
 			rewindIndex = null;
+			clearRewindPosition(selectedConvId);
 			if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
 		}
 	}
@@ -1133,7 +1166,7 @@
 				<div></div>
 				<div class="control-strip">
 					<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} class:pulsing={pulsingTeammates.length > 0} title="Live mirror"></span>
-				<button class="control-btn" onclick={() => { if (rewindIndex !== null) { if (rewindIndex > 0) { rewindIndex--; if (messagesContainer) messagesContainer.scrollTop = 0; } } else { rewindIndex = Math.max(0, chatMessages.length - 2); if (messagesContainer) messagesContainer.scrollTop = 0; } }} title="Rewind">
+				<button class="control-btn" onclick={() => { if (rewindIndex !== null) { if (rewindIndex > 0) { rewindIndex--; saveRewindPosition(selectedConvId, chatMessages[rewindIndex].id); if (messagesContainer) messagesContainer.scrollTop = 0; } } else { rewindIndex = Math.max(0, chatMessages.length - 2); saveRewindPosition(selectedConvId, chatMessages[rewindIndex].id); if (messagesContainer) messagesContainer.scrollTop = 0; } }} title="Rewind">
 						<LucideRewind width={14} height={14} style="color: {isCurrentRoomPaused ? '#7a5e4a' : '#555'};" />
 				</button>
 				<button class="control-btn" onclick={() => { if (!isCurrentRoomPaused) { if (selectedConvId.startsWith("huddle-")) { stoppedHuddles.delete(selectedConvId); stoppedHuddles = new Set(stoppedHuddles); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } } else { stepOne(); } }} title={isCurrentRoomPaused ? "Forward" : "Pause"}>
