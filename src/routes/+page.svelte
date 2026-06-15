@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { marked } from 'marked';
 	import { onMount, onDestroy, tick } from 'svelte';
-	import LucidePlay from '~icons/lucide/play';
+	import LucideRewind from '~icons/lucide/rewind';
+	import LucideFastForward from '~icons/lucide/fast-forward';
 	import LucideRadio from '~icons/lucide/radio';
 	import LucideMessageSquareOff from '~icons/lucide/message-square-off';
 	import LucideVolumeX from '~icons/lucide/volume-x';
@@ -454,6 +455,42 @@
 		}
 	}
 
+	function stepBack() {
+		const convId = selectedConvId;
+		if (!convId) return;
+		const conv = conversations[convId] ?? [];
+		if (conv.length === 0) return;
+		const batch: ChatMsg[] = [];
+		let remaining = [...conv];
+		while (remaining.length > 0) {
+			const msg = remaining.pop()!;
+			batch.unshift(msg);
+			if (!msg.response && !msg.toolCall) break;
+		}
+		if (batch.length === 0) return;
+		conversations[convId] = remaining;
+		conversations = conversations;
+		const queue = messageQueues[convId] ?? [];
+		messageQueues[convId] = [...batch, ...queue];
+		messageQueues = messageQueues;
+		const batchIds = batch.map(m => m.id);
+		const roomIds = queuedMessageIds[convId] ?? [];
+		queuedMessageIds[convId] = [...batchIds, ...roomIds];
+		queuedMessageIds = queuedMessageIds;
+		localStorage.setItem('facade-queued-ids', JSON.stringify(queuedMessageIds));
+		if (!isCurrentRoomPaused) {
+			if (convId.startsWith("huddle-")) { stoppedHuddles.delete(convId); stoppedHuddles = new Set(stoppedHuddles); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); }
+			else { pausedRoom = convId; localStorage.setItem('facade-paused-room', convId); }
+		}
+		setTimeout(() => {
+			if (messagesContainer && remaining.length > 0) {
+				const lastMsg = remaining[remaining.length - 1];
+				const el = messagesContainer.querySelector(`[data-msg-id="${lastMsg.id}"]`);
+				if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+			}
+		}, 50);
+	}
+
 	async function sendMessage() {
 		const content = newMessage.trim();
 		if (!content || !selectedConvId) return;
@@ -707,6 +744,9 @@
 		} else if (e.ctrlKey && e.key === 'ArrowRight') {
 			e.preventDefault();
 			stepOne();
+		} else if (e.ctrlKey && e.key === 'ArrowLeft') {
+			e.preventDefault();
+			stepBack();
 		}
 	}
 
@@ -1083,8 +1123,11 @@
 				<div></div>
 				<div class="control-strip">
 					<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} class:pulsing={pulsingTeammates.length > 0} title="Live mirror"></span>
-				<button class="control-btn" onclick={() => { if (!isCurrentRoomPaused) { if (selectedConvId.startsWith("huddle-")) { stoppedHuddles.delete(selectedConvId); stoppedHuddles = new Set(stoppedHuddles); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } } else { stepOne(); } }} title={isCurrentRoomPaused ? ((messageQueues[selectedConvId]?.filter(m => !m.response).length ?? 0) > 0 ? "Next message" : "Paused") : "Pause"}>
-						<LucidePlay width={14} height={14} style="color: {isCurrentRoomPaused ? '#7a5e4a' : '#555'};" />
+				<button class="control-btn" onclick={() => stepBack()} title="Rewind">
+						<LucideRewind width={14} height={14} style="color: {isCurrentRoomPaused ? '#7a5e4a' : '#555'};" />
+				</button>
+				<button class="control-btn" onclick={() => { if (!isCurrentRoomPaused) { if (selectedConvId.startsWith("huddle-")) { stoppedHuddles.delete(selectedConvId); stoppedHuddles = new Set(stoppedHuddles); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } } else { stepOne(); } }} title={isCurrentRoomPaused ? "Forward" : "Pause"}>
+						<LucideFastForward width={14} height={14} style="color: {isCurrentRoomPaused ? '#7a5e4a' : '#555'};" />
 					{#if true}
 						{@const queueCount = (messageQueues[selectedConvId] ?? []).filter(m => !m.response).length}
 						{@const hundreds = queueCount >= 100 ? String(Math.floor(queueCount / 100)) : ''}
