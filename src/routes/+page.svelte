@@ -256,6 +256,7 @@
 	let stoppedHuddles = $state<Set<string>>(new Set());
 	let sidebarLoaded = $state(false);
 	let focusMode = $state(false);
+	let rewindIndex = $state<number | null>(null);
 	let notebookOpen = $state(false);
 	let notebookText = $state('');
 	let queuedMessageIds = $state<Record<string, string[]>>({});
@@ -444,7 +445,7 @@
 			setTimeout(() => {
 				if (messagesContainer && lastReal) {
 					const el = messagesContainer.querySelector(`[data-msg-id="${lastReal.id}"]`);
-					if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+					if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 				}
 			}, 50);
 		}
@@ -486,7 +487,7 @@
 			if (messagesContainer && remaining.length > 0) {
 				const lastMsg = remaining[remaining.length - 1];
 				const el = messagesContainer.querySelector(`[data-msg-id="${lastMsg.id}"]`);
-				if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+				if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 			}
 		}, 50);
 	}
@@ -677,6 +678,7 @@
 		if (!room || room === prevRoom) return;
 		prevRoom = room;
 		savePrefs();
+		rewindIndex = null;
 		userScrolledUp = false;
 		if (room.startsWith("huddle-") && !stoppedHuddles.has(room)) {
 			// Huddle pause is implicit — all huddles paused unless in stoppedHuddles
@@ -743,10 +745,18 @@
 			inputRef?.blur();
 		} else if (e.ctrlKey && e.key === 'ArrowRight') {
 			e.preventDefault();
-			stepOne();
+			if (rewindIndex !== null) {
+				if (rewindIndex >= chatMessages.length - 1) { rewindIndex = null; if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight; }
+				else { rewindIndex++; if (messagesContainer) messagesContainer.scrollTop = 0; }
+			} else { stepOne(); }
 		} else if (e.ctrlKey && e.key === 'ArrowLeft') {
 			e.preventDefault();
-			stepBack();
+			if (rewindIndex !== null) { if (rewindIndex > 0) { rewindIndex--; if (messagesContainer) messagesContainer.scrollTop = 0; } }
+			else { rewindIndex = Math.max(0, chatMessages.length - 2); if (messagesContainer) messagesContainer.scrollTop = 0; }
+		} else if (e.key === 'Escape' && rewindIndex !== null) {
+			e.preventDefault();
+			rewindIndex = null;
+			if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
 		}
 	}
 
@@ -1093,7 +1103,7 @@
 			<!-- Conversation area (scrollable) -->
 			<div class="flex-1 overflow-y-auto" style="background: var(--color-bg); padding-bottom: {currentRoomKind === "past" || selectedConvId?.startsWith("offline-") ? '0' : '120px'};" bind:this={messagesContainer} onscroll={(e) => { const el = e.currentTarget; userScrolledUp = el.scrollTop < el.scrollHeight - el.clientHeight - 50; }}>
 				<div class="py-2" style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px; margin-top: auto;">
-					{#each chatMessages as msg}
+					{#each rewindIndex !== null ? [chatMessages[rewindIndex]].filter(Boolean) : chatMessages as msg}
 						<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
 							<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
 						</div>
@@ -1123,7 +1133,7 @@
 				<div></div>
 				<div class="control-strip">
 					<span class="control-led" style="margin-right: 4px;" class:active={liveMirrorActive} class:pulsing={pulsingTeammates.length > 0} title="Live mirror"></span>
-				<button class="control-btn" onclick={() => stepBack()} title="Rewind">
+				<button class="control-btn" onclick={() => { if (rewindIndex !== null) { if (rewindIndex > 0) { rewindIndex--; if (messagesContainer) messagesContainer.scrollTop = 0; } } else { rewindIndex = Math.max(0, chatMessages.length - 2); if (messagesContainer) messagesContainer.scrollTop = 0; } }} title="Rewind">
 						<LucideRewind width={14} height={14} style="color: {isCurrentRoomPaused ? '#7a5e4a' : '#555'};" />
 				</button>
 				<button class="control-btn" onclick={() => { if (!isCurrentRoomPaused) { if (selectedConvId.startsWith("huddle-")) { stoppedHuddles.delete(selectedConvId); stoppedHuddles = new Set(stoppedHuddles); localStorage.setItem('facade-stopped-huddles', JSON.stringify([...stoppedHuddles])); } else { pausedRoom = selectedConvId; localStorage.setItem('facade-paused-room', selectedConvId); } } else { stepOne(); } }} title={isCurrentRoomPaused ? "Forward" : "Pause"}>
