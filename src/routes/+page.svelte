@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { marked } from 'marked';
 	import { onMount, onDestroy, tick } from 'svelte';
-	import LucideBookmark from '~icons/lucide/bookmark';
 	import LucidePlay from '~icons/lucide/play';
 	import LucidePause from '~icons/lucide/pause';
 	import LucideSquare from '~icons/lucide/square';
@@ -15,6 +14,7 @@
 	import LucideNotebookPen from '~icons/lucide/notebook-pen';
 	import LucideEarOff from '~icons/lucide/ear-off';
 	import LucideFiles from '~icons/lucide/files';
+	import LucideBookmark from '~icons/lucide/bookmark';
 	import LucideArchive from '~icons/lucide/archive';
 	import LucideLibrary from '~icons/lucide/library';
 	import LucideMilestone from '~icons/lucide/milestone';
@@ -844,6 +844,7 @@
 	}
 
 	let copyFlashRoom = $state("");
+	let copyFlashMsgId = $state("");
 	let archiveFlashName = $state("");
 	let archiveFlashRoom = $state("");
 
@@ -873,6 +874,23 @@
 			await navigator.clipboard.writeText(`Read up on the conversation that happened in this room: ${filePath}`);
 			copyFlashRoom = roomId;
 			setTimeout(() => { copyFlashRoom = ""; }, 1500);
+		} catch {}
+	}
+
+	async function copyMessage(msg: any) {
+		try {
+			const row = document.querySelector(`.msg-row[data-msg-id="${msg.id}"]`);
+			const contentEl = row?.querySelector('.md-content') ?? row?.firstElementChild;
+			const html = `<strong>${msg.sender}</strong><br>${contentEl?.innerHTML ?? msg.content}`;
+			const plain = `${msg.sender}\n${msg.content}`;
+			await navigator.clipboard.write([
+				new ClipboardItem({
+					"text/html": new Blob([html], { type: "text/html" }),
+					"text/plain": new Blob([plain], { type: "text/plain" }),
+				})
+			]);
+			copyFlashMsgId = msg.id;
+			setTimeout(() => { copyFlashMsgId = ""; }, 1500);
 		} catch {}
 	}
 
@@ -1041,7 +1059,7 @@
 						<div style="padding-top: {msg.toolCall ? 'calc(2rem - 1px + 0.75em)' : 'calc(2rem - 1px)'}; text-align: left; align-self: start;">
 							<p style="margin: 0; font-family: var(--font-sans); color: var(--color-text-muted); font-size: 12px; line-height: 1.8;">{msg.sender}</p>
 						</div>
-						<div class="msg-row" data-msg-id={msg.id} style="padding-top: 2rem; position: relative;">
+						<div class="msg-row" data-msg-id={msg.id} style="padding-top: 2rem; padding-bottom: 12px; position: relative;">
 							<div style="border-left: {msg.sender === 'boss' ? '2px solid #5A3E2E' : '2px solid transparent'}; padding-left: 1.5rem;">
 								{#if msg.toolCall}
 									{@html renderToolCard(msg.content)}
@@ -1051,12 +1069,10 @@
 									</div>
 								{/if}
 							</div>
-							<button
-								class="bookmark-btn {bookmarks.some(bm => bm.messageId === msg.id) ? 'bookmarked' : ''}"
-								style="opacity: {bookmarks.some(bm => bm.messageId === msg.id) ? '1' : ''};"
-								onclick={() => toggleBookmark(msg)}
-								title="Bookmark this message"
-							><LucideBookmark width={14} height={14} style="color: {bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'}; fill: {bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'};" /></button>
+							<span class="msg-actions">
+								<button class="control-btn" onclick={() => copyMessage(msg)} title="Copy message" style="color: {copyFlashMsgId === msg.id ? '#7a5e4a' : '#555'};"><LucideFiles width={14} height={14} /></button>
+								<button class="control-btn {bookmarks.some(bm => bm.messageId === msg.id) ? 'bookmarked' : ''}" onclick={() => toggleBookmark(msg)} title="Bookmark" style="color: {bookmarks.some(bm => bm.messageId === msg.id) ? '#7a5e4a' : '#555'};"><LucideBookmark width={14} height={14} /></button>
+							</span>
 						</div>
 					{/each}
 				</div>
@@ -1267,27 +1283,18 @@
 	.dismiss-btn:hover {
 		color: var(--color-text);
 	}
-	.msg-row:hover .bookmark-btn {
-		opacity: 1 !important;
-	}
-	.bookmark-btn {
+	.msg-actions {
 		position: absolute;
-		top: calc(2rem - 6px);
-		right: 0;
-		background: #0b0d10;
-		border: none;
-		border-radius: 4px;
-		cursor: pointer;
-		font-size: 12px;
-		color: var(--color-text-muted);
-		opacity: 0;
-		transition: opacity 0.15s;
-		padding: 8px;
+		bottom: 4px;
+		left: calc(1.5rem - 5px);
 		display: flex;
 		align-items: center;
-		justify-content: center;
+		gap: 12px;
 	}
-	.bookmark-btn.bookmarked :global(path) {
+	.msg-actions .bookmarked {
+		opacity: 1;
+	}
+	.msg-actions .bookmarked :global(path) {
 		fill: currentColor;
 	}
 	.activity-row:hover .broadcast-btn {
