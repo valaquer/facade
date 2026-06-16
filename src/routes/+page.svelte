@@ -305,6 +305,27 @@
 	let rekindleFlash = $state(false);
 	let zombieCount = $state(0);
 	let pulsingTeammates = $state<string[]>([]);
+	let activeAccount = $state("gmail");
+	let switching = $state(false);
+	async function fetchActiveAccount() {
+		try {
+			const r = await fetch("/api/account-switch");
+			if (r.ok) { const d = await r.json(); activeAccount = d.account ?? "gmail"; }
+		} catch {}
+	}
+	async function switchAccount() {
+		if (switching) return;
+		switching = true;
+		try {
+			const res = await fetch("/api/account-switch", { method: "POST" });
+			if (!res.ok) throw new Error();
+			const data = await res.json();
+			activeAccount = data.account;
+			await fetchZombieCount();
+		} catch {} finally {
+			switching = false;
+		}
+	}
 	async function fetchZombieCount() {
 		try {
 			const r = await fetch("/api/rekindle");
@@ -667,6 +688,7 @@
 			fetch("/api/activity-deaf").then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {}),
 			fetch("/api/pulse").then(r => r.json()).then(d => { if (d.pending?.length) { pulsingTeammates = d.pending.map((p: {teammate: string}) => p.teammate); } }).catch(() => {}),
 			fetchZombieCount(),
+			fetchActiveAccount(),
 		]).then(() => {
 			// Force room-switch $effect to re-run and load messages
 			prevRoom = "";
@@ -693,6 +715,7 @@
 		fetch("/api/activity-deaf").then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {});
 		fetch("/api/pulse").then(r => r.json()).then(d => { if (d.pending?.length) { pulsingTeammates = d.pending.map((p: {teammate: string}) => p.teammate); } }).catch(() => {});
 		fetchZombieCount();
+		fetchActiveAccount();
 		connectEventSource();
 		pulsePoller = setInterval(() => {
 			fetch("/api/pulse").then(r => r.json()).then(d => {
@@ -1253,6 +1276,9 @@
 				</button>
 				<button class="control-btn" onclick={sendPauseMessage} disabled={pausing} title="Pause — alert room">
 					<LucideX width={18} height={18} style="color: {pauseError ? '#e74c3c' : '#555'};" />
+				</button>
+				<button class="control-btn" onclick={switchAccount} disabled={switching} title="Switch account — kill all tabs + flip to {activeAccount === 'oovar' ? 'gmail' : 'oovar'}">
+					<span style="font-family: var(--font-sans); font-size: 14px; color: {switching ? '#7a5e4a' : '#555'};">{activeAccount === 'oovar' ? 'O' : 'G'}</span>
 				</button>
 				<button class="control-btn" onclick={rekindleZombies} disabled={rekindling} title="Rekindle — relight all zombie rooms">
 					<span class={rekindleFlash || zombieCount > 0 ? 'zap-active' : ''}><LucideZap width={14} height={14} style="color: {rekindleFlash || zombieCount > 0 ? '#7a5e4a' : '#555'};" /></span>
