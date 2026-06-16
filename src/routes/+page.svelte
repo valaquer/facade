@@ -356,6 +356,8 @@
 		try {
 			const currentRoomId = selectedConvId;
 			const isInitialLoad = !sidebarLoaded;
+			const wasBookmark = !isInitialLoad && selectedIndex >= preBookmarkCount && selectedIndex < preBookmarkCount + bookmarks.length;
+			const bmIdx = wasBookmark ? selectedIndex - preBookmarkCount : -1;
 			const fetches: Promise<Response>[] = [fetch("/api/rooms")];
 			if (isInitialLoad) fetches.push(fetch("/api/preferences"));
 			const responses = await Promise.all(fetches);
@@ -368,7 +370,10 @@
 			const items = [...teammates, ...currentHuddles, ...pastItems];
 			const roomToFind = isInitialLoad ? (prefs?.selectedRoom ?? "") : currentRoomId;
 			let newIndex = 0;
-			if (roomToFind) {
+			if (wasBookmark && bmIdx >= 0 && bmIdx < bookmarks.length) {
+				const newPastStart = items.findIndex(x => x.kind === "past");
+				newIndex = (newPastStart === -1 ? items.length : newPastStart) + bmIdx;
+			} else if (roomToFind) {
 				const idx = items.findIndex((i) => i.id === roomToFind);
 				if (idx >= 0) {
 					const pastStart = items.findIndex(x => x.kind === "past");
