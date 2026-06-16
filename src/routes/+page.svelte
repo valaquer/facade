@@ -222,6 +222,12 @@
 	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; model?: string; participants?: string[]; online?: boolean; group?: string; groupIdx?: number };
 	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean; response?: boolean; summary?: string };
 	type Bookmark = { id: string; messageId: string; roomId: string; name: string; createdAt: string };
+	type NavItem =
+		| { type: "header"; section: string }
+		| { type: "teammate"; item: SidebarItem }
+		| { type: "huddle"; item: SidebarItem }
+		| { type: "bookmark"; bm: Bookmark }
+		| { type: "past"; item: SidebarItem };
 
 	function formatPastRoom(name: string): { label: string; date: string } {
 		const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -285,6 +291,7 @@
 			return idx;
 		} catch { return null; }
 	}
+	let displayedConvId = $state("");
 	let notebookOpen = $state(false);
 	let notebookText = $state('');
 	let queuedMessageIds = $state<Record<string, string[]>>({});
@@ -314,50 +321,88 @@
 		const r = roomId.toLowerCase();
 		return deafEntries.some(e => p === e.recipient && r.startsWith(e.room));
 	}
-	// Nav index math: visual order is teammates → huddles → bookmarks → past rooms
-	// sidebarItems order is teammates → huddles → past rooms
-	// preBookmarkCount = index where past rooms start in sidebarItems
-	let preBookmarkCount = $derived.by(() => {
-		const idx = sidebarItems.findIndex(x => x.kind === "past");
-		return idx === -1 ? sidebarItems.length : idx;
+	// Nav model: unified navItems array in visual order with section headers as navigable items
+	let navItems = $derived.by(() => {
+		const items: NavItem[] = [];
+		items.push({ type: "header", section: "Teammates" });
+		for (const item of sidebarItems.filter(x => x.kind === "teammate")) {
+			items.push({ type: "teammate", item });
+		}
+		items.push({ type: "header", section: "Huddles" });
+		for (const item of sidebarItems.filter(x => x.kind === "huddle")) {
+			items.push({ type: "huddle", item });
+		}
+		if (bookmarks.length > 0) {
+			items.push({ type: "header", section: "Bookmarks" });
+			for (const bm of bookmarks) {
+				items.push({ type: "bookmark", bm });
+			}
+		}
+		const now = Date.now();
+		const oneDayAgo = now - 24 * 60 * 60 * 1000;
+		const pastItems = sidebarItems.filter(x => {
+			if (x.kind !== "past") return false;
+			const tsMatch = x.id.match(/-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/);
+			if (!tsMatch) return true;
+			const [, y, mo, d, h, mi, s] = tsMatch;
+			const roomTime = new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}`).getTime();
+			return roomTime >= oneDayAgo;
+		});
+		if (pastItems.length > 0) {
+			items.push({ type: "header", section: "Past Rooms" });
+			for (const item of pastItems) {
+				items.push({ type: "past", item });
+			}
+		}
+		return items;
 	});
-	let totalNavItems = $derived(sidebarItems.length + bookmarks.length);
-	// Nav index → data: [0..pbc-1] = sidebarItems[0..pbc-1], [pbc..pbc+B-1] = bookmarks, [pbc+B..end] = sidebarItems[pbc..end]
+
+	function navItemRoomId(nav: NavItem): string {
+		if (nav.type === "header") return "";
+		if (nav.type === "bookmark") return nav.bm.roomId;
+		return nav.item.id;
+	}
+
 	let selectedConvId = $derived.by(() => {
 		if (!sidebarLoaded) return "";
-		const pbc = preBookmarkCount;
-		if (selectedIndex < pbc) {
-			return sidebarItems[selectedIndex]?.id ?? "";
-		}
-		if (selectedIndex < pbc + bookmarks.length) {
-			return bookmarks[selectedIndex - pbc]?.roomId ?? "";
-		}
-		const sidebarIdx = selectedIndex - bookmarks.length;
-		return sidebarItems[sidebarIdx]?.id ?? "";
+		const nav = navItems[selectedIndex];
+		if (!nav) return "";
+		return navItemRoomId(nav);
 	});
 
 	let currentRoomKind = $derived.by(() => {
-		const pbc = preBookmarkCount;
-		if (selectedIndex < pbc) {
-			return sidebarItems[selectedIndex]?.kind ?? "";
-		}
-		if (selectedIndex < pbc + bookmarks.length) {
-			const bm = bookmarks[selectedIndex - pbc];
-			const item = sidebarItems.find(x => x.id === bm?.roomId);
+		const nav = navItems[selectedIndex];
+		if (!nav) return "";
+		if (nav.type === "header") return "header";
+		if (nav.type === "bookmark") {
+			const item = sidebarItems.find(x => x.id === nav.bm.roomId);
 			return item?.kind ?? "past";
 		}
-		const sidebarIdx = selectedIndex - bookmarks.length;
-		return sidebarItems[sidebarIdx]?.kind ?? "";
+		return nav.item.kind;
 	});
 
 	let prefsTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function findNavIndex(items: NavItem[], roomId: string, section?: string): number {
+		// If was on a header, find the same header
+		if (section) {
+			const idx = items.findIndex(n => n.type === "header" && n.section === section);
+			if (idx >= 0) return idx;
+		}
+		// Find by room ID
+		if (roomId) {
+			const idx = items.findIndex(n => navItemRoomId(n) === roomId);
+			if (idx >= 0) return idx;
+		}
+		return 0; // Teammates header
+	}
 
 	async function loadSidebar() {
 		try {
 			const currentRoomId = selectedConvId;
 			const isInitialLoad = !sidebarLoaded;
-			const wasBookmark = !isInitialLoad && selectedIndex >= preBookmarkCount && selectedIndex < preBookmarkCount + bookmarks.length;
-			const bmIdx = wasBookmark ? selectedIndex - preBookmarkCount : -1;
+			const wasOnHeader = !isInitialLoad && navItems[selectedIndex]?.type === "header";
+			const headerSection = wasOnHeader ? (navItems[selectedIndex] as { type: "header"; section: string }).section : "";
 			const fetches: Promise<Response>[] = [fetch("/api/rooms")];
 			if (isInitialLoad) fetches.push(fetch("/api/preferences"));
 			const responses = await Promise.all(fetches);
@@ -368,20 +413,10 @@
 			const pastItems: SidebarItem[] = (data.pastRooms ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, kind: "past" as const }));
 
 			const items = [...teammates, ...currentHuddles, ...pastItems];
-			const roomToFind = isInitialLoad ? (prefs?.selectedRoom ?? "") : currentRoomId;
-			let newIndex = 0;
-			if (wasBookmark && bmIdx >= 0 && bmIdx < bookmarks.length) {
-				const newPastStart = items.findIndex(x => x.kind === "past");
-				newIndex = (newPastStart === -1 ? items.length : newPastStart) + bmIdx;
-			} else if (roomToFind) {
-				const idx = items.findIndex((i) => i.id === roomToFind);
-				if (idx >= 0) {
-					const pastStart = items.findIndex(x => x.kind === "past");
-					newIndex = (pastStart >= 0 && idx >= pastStart) ? idx + bookmarks.length : idx;
-				}
-			}
 			sidebarItems = items;
-			selectedIndex = newIndex;
+			// navItems is $derived and recalculates immediately after sidebarItems assignment
+			const roomToFind = isInitialLoad ? (prefs?.selectedRoom ?? "") : currentRoomId;
+			selectedIndex = findNavIndex(navItems, roomToFind, wasOnHeader ? headerSection : undefined);
 			sidebarLoaded = true;
 		} catch {
 			sidebarItems = [];
@@ -391,15 +426,14 @@
 
 	function savePrefs() {
 		if (prefsTimer) clearTimeout(prefsTimer);
+		const roomId = selectedConvId;
+		if (!roomId) return; // Don't save prefs when on a section header
 		prefsTimer = setTimeout(() => {
-			const roomId = selectedConvId;
-			if (roomId) {
-				fetch("/api/preferences", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ selectedRoom: roomId }),
-				}).catch(() => {});
-			}
+			fetch("/api/preferences", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ selectedRoom: roomId }),
+			}).catch(() => {});
 		}, 300);
 	}
 
@@ -677,6 +711,7 @@
 	onDestroy(() => {
 		eventSource?.close();
 		if (sseTimeout) clearTimeout(sseTimeout);
+		if (roomSwitchTimer) clearTimeout(roomSwitchTimer);
 		if (notebookSaveTimer) clearTimeout(notebookSaveTimer);
 		if (pulsePoller) clearInterval(pulsePoller);
 		if (zombiePoller) clearInterval(zombiePoller);
@@ -701,77 +736,79 @@
 	$effect(() => {
 		const idx = selectedIndex;
 		const el = document.querySelector(`[data-nav-idx="${idx}"]`);
-		if (el) el.scrollIntoView({ block: "nearest" });
+		if (el) el.scrollIntoView({ block: "nearest", behavior: "instant" });
 	});
 
 	let prevRoom = "";
+	let roomSwitchTimer: ReturnType<typeof setTimeout> | undefined;
 
-	// Consolidated room-switch effect: saves prefs, resets per-room state, fetches messages.
-	// Replaces the old competing $effects on savePrefs, auto-scroll, and fetchMessages.
+	// Room-switch effect: debounced to avoid jitter during rapid Ctrl+Up/Down navigation.
+	// Headers (selectedConvId = "") are skipped — chat panel persists last room via displayedConvId.
 	$effect(() => {
 		const room = selectedConvId;
-		if (!room || room === prevRoom) return;
+		if (!room) return; // Header selected — keep displaying previous room
+		if (room === prevRoom) return;
 		prevRoom = room;
+		displayedConvId = room;
 		savePrefs();
 		userScrolledUp = false;
-		if (room.startsWith("huddle-") && !stoppedHuddles.has(room)) {
-			// Huddle pause is implicit — all huddles paused unless in stoppedHuddles
-		}
-		loadingRoom = room;
-		fetch(`/api/messages?room=${room}`)
-			.then((r) => r.json())
-			.then((msgs: any[]) => {
-				if (loadingRoom !== room) return;
-				const parsed = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call", response: m.type === "response" }));
-				// If paused and have queued IDs, split: queued go to messageQueues, rest to conversations
-				const roomQueuedIds = queuedMessageIds[room] ?? [];
-				if ((room.startsWith("huddle-") && !stoppedHuddles.has(room)) && roomQueuedIds.length > 0) {
-					const queuedSet = new Set(roomQueuedIds);
-					const queued = parsed.filter((m: ChatMsg) => queuedSet.has(m.id));
-					const rest = parsed.filter((m: ChatMsg) => !queuedSet.has(m.id));
-					conversations[room] = rest;
-					conversations = conversations;
-					messageQueues[room] = queued;
-					messageQueues = messageQueues;
-				} else {
-					conversations[room] = parsed;
-					conversations = conversations;
-				}
-				loadingRoom = "";
-				// Restore rewind position if one was saved for this room
-				const visibleMessages = (conversations[room] ?? []).filter((m: ChatMsg) => !isTokenNoise(m) && !m.toolCall && !m.response);
-				const restored = restoreRewindPosition(room, visibleMessages);
-				rewindIndex = restored;
-				// Scroll to bottom on initial load (unless spotlight restored)
-				setTimeout(() => {
-					if (rewindIndex !== null) {
-						if (messagesContainer) messagesContainer.scrollTop = 0;
+		if (roomSwitchTimer) clearTimeout(roomSwitchTimer);
+		roomSwitchTimer = setTimeout(() => {
+			if (room.startsWith("huddle-") && !stoppedHuddles.has(room)) {
+				// Huddle pause is implicit — all huddles paused unless in stoppedHuddles
+			}
+			loadingRoom = room;
+			fetch(`/api/messages?room=${room}`)
+				.then((r) => r.json())
+				.then((msgs: any[]) => {
+					if (loadingRoom !== room) return;
+					const parsed = msgs.map((m) => ({ ...m, toolCall: m.type === "tool_call", response: m.type === "response" }));
+					// If paused and have queued IDs, split: queued go to messageQueues, rest to conversations
+					const roomQueuedIds = queuedMessageIds[room] ?? [];
+					if ((room.startsWith("huddle-") && !stoppedHuddles.has(room)) && roomQueuedIds.length > 0) {
+						const queuedSet = new Set(roomQueuedIds);
+						const queued = parsed.filter((m: ChatMsg) => queuedSet.has(m.id));
+						const rest = parsed.filter((m: ChatMsg) => !queuedSet.has(m.id));
+						conversations[room] = rest;
+						conversations = conversations;
+						messageQueues[room] = queued;
+						messageQueues = messageQueues;
 					} else {
-						if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
-						if (activityContainer) activityContainer.scrollTop = activityContainer.scrollHeight;
+						conversations[room] = parsed;
+						conversations = conversations;
 					}
-				}, 50);
-			})
-			.catch(() => { if (loadingRoom === room) loadingRoom = ""; });
+					loadingRoom = "";
+					// Restore rewind position if one was saved for this room
+					const visibleMessages = (conversations[room] ?? []).filter((m: ChatMsg) => !isTokenNoise(m) && !m.toolCall && !m.response);
+					const restored = restoreRewindPosition(room, visibleMessages);
+					rewindIndex = restored;
+					// Scroll to bottom on initial load (unless spotlight restored)
+					setTimeout(() => {
+						if (rewindIndex !== null) {
+							if (messagesContainer) messagesContainer.scrollTop = 0;
+						} else {
+							if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+							if (activityContainer) activityContainer.scrollTop = activityContainer.scrollHeight;
+						}
+					}, 50);
+				})
+				.catch(() => { if (loadingRoom === room) loadingRoom = ""; });
+		}, 1000);
 	});
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.ctrlKey && e.key === 'ArrowDown') {
 			e.preventDefault();
-			if (totalNavItems === 0) return;
-			selectedIndex = Math.min(selectedIndex + 1, totalNavItems - 1);
-			const pbc = preBookmarkCount;
-			if (selectedIndex >= pbc && selectedIndex < pbc + bookmarks.length) {
-				pendingScrollMessageId = bookmarks[selectedIndex - pbc]?.messageId ?? null;
-			}
+			if (navItems.length === 0) return;
+			selectedIndex = Math.min(selectedIndex + 1, navItems.length - 1);
+			const nav = navItems[selectedIndex];
+			if (nav?.type === "bookmark") pendingScrollMessageId = nav.bm.messageId;
 		} else if (e.ctrlKey && e.key === 'ArrowUp') {
 			e.preventDefault();
-			if (totalNavItems === 0) return;
+			if (navItems.length === 0) return;
 			selectedIndex = Math.max(selectedIndex - 1, 0);
-			const pbc = preBookmarkCount;
-			if (selectedIndex >= pbc && selectedIndex < pbc + bookmarks.length) {
-				pendingScrollMessageId = bookmarks[selectedIndex - pbc]?.messageId ?? null;
-			}
+			const nav = navItems[selectedIndex];
+			if (nav?.type === "bookmark") pendingScrollMessageId = nav.bm.messageId;
 		} else if (e.key === 'Enter' && !e.shiftKey && document.activeElement !== inputRef && document.activeElement !== notebookRef) {
 			e.preventDefault();
 			inputRef?.focus();
@@ -807,8 +844,7 @@
 		return c.startsWith("Token passed to ") || c.includes("token released");
 	}
 
-	let currentMessages = $derived(selectedConvId ? (conversations[selectedConvId] ?? []).filter((m) => !isTokenNoise(m)) : []);
-	let teammatesList = $derived(sidebarItems.filter((x) => x.kind === "teammate"));
+	let currentMessages = $derived(displayedConvId ? (conversations[displayedConvId] ?? []).filter((m) => !isTokenNoise(m)) : []);
 	function extractDate(name: string): string {
 		const m = name.match(/-(\d{8})-/);
 		return m ? m[1] : "";
@@ -906,7 +942,7 @@
 	}
 
 	function navigateToBookmark(bm: Bookmark) {
-		const idx = sidebarItems.findIndex((item) => item.id === bm.roomId);
+		const idx = navItems.findIndex(n => n.type === "bookmark" && n.bm.id === bm.id);
 		if (idx >= 0) {
 			selectedIndex = idx;
 			pendingScrollMessageId = bm.messageId;
@@ -932,13 +968,23 @@
 		}
 	});
 
+	function findNextRoom(fromIdx: number): number {
+		// Look forward for next non-header item
+		for (let i = fromIdx + 1; i < navItems.length; i++) {
+			if (navItems[i].type !== "header") return i;
+		}
+		// Fall back to previous non-header item
+		for (let i = fromIdx - 1; i >= 0; i--) {
+			if (navItems[i].type !== "header") return i;
+		}
+		return 0; // Teammates header as last resort
+	}
+
 	async function dismissTeammate(name: string) {
 		try {
 			archiveFlashName = name;
 			pulsingTeammates = pulsingTeammates.filter(n => n !== name);
-			selectedIndex = 0;
-			const firstRoom = sidebarItems[0]?.id;
-			if (firstRoom) fetch("/api/preferences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ selectedRoom: firstRoom }) }).catch(() => {});
+			selectedIndex = findNextRoom(selectedIndex);
 			fetch("/api/dismiss-pulse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teammate: name }) }).catch(() => {});
 			await fetch("/api/rooms/deactivate", {
 				method: "POST",
@@ -957,9 +1003,7 @@
 	async function archiveHuddle(roomId: string) {
 		try {
 			archiveFlashRoom = roomId;
-			selectedIndex = 0;
-			const firstRoom = sidebarItems[0]?.id;
-			if (firstRoom) fetch("/api/preferences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ selectedRoom: firstRoom }) }).catch(() => {});
+			selectedIndex = findNextRoom(selectedIndex);
 			await fetch("/api/archive-huddle", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -1069,17 +1113,23 @@
 	<div style="background: var(--color-bg-panel); border-right: 1px dashed var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh; visibility: {focusMode ? 'hidden' : 'visible'};">
 		<div style="flex: 1; overflow-y: auto; font-family: var(--font-sans);">
 		{#if sidebarLoaded}
-			<div style="padding: 1rem 1rem 1rem 1.5rem; border-top: 1px dashed var(--color-bg-step4); border-bottom: 1px dashed var(--color-bg-step4);">
-				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
-			</div>
-			<div style="padding: 0.5rem 0 0.5rem 0;">
-				{#each teammatesList as item, i}
+			{#each navItems as nav, i}
+				{#if nav.type === "header"}
+					<div
+						data-nav-idx={i}
+						onclick={() => selectedIndex = i}
+						style="padding: 1rem 1rem 1rem 1.5rem; cursor: pointer; {nav.section !== 'Teammates' ? '' : 'border-top: 1px dashed var(--color-bg-step4);'} border-bottom: 1px dashed var(--color-bg-step4); background: {selectedIndex === i ? 'var(--color-bg-element)' : 'transparent'};"
+					>
+						<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">{nav.section}</p>
+					</div>
+				{:else if nav.type === "teammate"}
+					{@const item = nav.item}
 					{@const fmt = formatPastRoom(item.id)}
 					<div
 						class="teammate-row{pulsingTeammates.includes(fmt.label) ? ' notification-pulse' : ''}"
-						data-nav-idx={sidebarItems.indexOf(item)}
-						onclick={() => { if (pulsingTeammates.includes(fmt.label)) { pulsingTeammates = pulsingTeammates.filter(n => n !== fmt.label); fetch("/api/dismiss-pulse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teammate: fmt.label }) }).catch(() => {}); } selectedIndex = sidebarItems.indexOf(item); }}
-						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {pulsingTeammates.includes(fmt.label) ? '' : (selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)')}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : ((item.groupIdx ?? 0) % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)')}; position: relative;"
+						data-nav-idx={i}
+						onclick={() => { if (pulsingTeammates.includes(fmt.label)) { pulsingTeammates = pulsingTeammates.filter(n => n !== fmt.label); fetch("/api/dismiss-pulse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teammate: fmt.label }) }).catch(() => {}); } selectedIndex = i; }}
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {archiveFlashName === fmt.label ? '#555' : (pulsingTeammates.includes(fmt.label) ? '' : (selectedIndex === i ? 'var(--color-text)' : 'var(--color-text-muted)'))}; background: {selectedIndex === i ? 'var(--color-bg-element)' : ((item.groupIdx ?? 0) % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)')}; position: relative; {archiveFlashName === fmt.label ? 'opacity: 0.3;' : ''}"
 					>
 						<div><span class="teammate-led" style="display: inline-block; width: 4px; height: 4px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: {item.online ? '#4ade80' : '#555'}; {item.online ? 'box-shadow: 0 0 4px #4ade80, 0 0 8px #4ade8066;' : ''}"></span><span style="{item.online ? '' : 'color: #555; opacity: 0.35;'}">{fmt.label}</span> {#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if} {#if item.model} <span class="sidebar-meta" style="font-size: 9px; color: #666; font-family: Menlo, monospace; font-weight: bold;">{item.model}</span>{/if}</div>
 						{#if item.online}<span class="sidebar-actions">
@@ -1087,44 +1137,32 @@
 							<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); copyRoom(item.id); }} title="Copy"><LucideFiles width={14} height={14} style="color: {copyFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
 						</span>{/if}
 					</div>
-				{/each}
-			</div>
-
-			<div style="padding: 1rem 1rem 1rem 1.5rem; border-top: 1px dashed var(--color-bg-step4); border-bottom: 1px dashed var(--color-bg-step4);">
-				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
-			</div>
-			<div style="padding: 0.5rem 0 0.5rem 0;">
-			{#each sidebarItems.filter((x) => x.kind === "huddle") as item, hi}
-				{@const fmt = formatPastRoom(item.id)}
-				<div
-					class="sidebar-row"
-					data-nav-idx={sidebarItems.indexOf(item)}
-					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : (hi % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent')}; position: relative;"
-				>
-					<div>{fmt.label} &nbsp;{#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
-					{#if item.participants?.length}
-						<div style="font-size: 9px; line-height: 1.6; color: #666;">{#each item.participants as p, pi}{#if pi > 0}{', '}{/if}{#if isMutedInRoom(p, item.id) || isDeafInRoom(p, item.id)}{#if isMutedInRoom(p, item.id)}<LucideVolumeX width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;{/if}{#if isDeafInRoom(p, item.id)}<LucideEarOff width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;{/if}<span style="color: #7a5e4a;">{p}</span>{:else}{p}{/if}{/each}</div>
-					{/if}
-					<span class="sidebar-actions">
-						<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); archiveHuddle(item.id); }} title="Archive"><LucideArchive width={14} height={14} style="color: {archiveFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
-						<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); copyRoom(item.id); }} title="Copy"><LucideFiles width={14} height={14} style="color: {copyFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
-					</span>
-				</div>
-			{/each}
-			</div>
-
-			{#if bookmarks.length > 0}
-				<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
-					<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Bookmarks</p>
-				</div>
-				<div style="padding: 0.5rem 0 0.5rem 0;">
-				{#each bookmarks as bm, bmIdx}
-					{@const navIdx = preBookmarkCount + bmIdx}
+				{:else if nav.type === "huddle"}
+					{@const item = nav.item}
+					{@const fmt = formatPastRoom(item.id)}
+					{@const huddleLocalIdx = navItems.slice(0, i).filter(n => n.type === "huddle").length}
 					<div
-						data-nav-idx={navIdx}
-						onclick={() => { selectedIndex = navIdx; pendingScrollMessageId = bm.messageId; }}
-						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === navIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === navIdx ? 'var(--color-bg-element)' : (bmIdx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent')};"
+						class="sidebar-row"
+						data-nav-idx={i}
+						onclick={() => selectedIndex = i}
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {archiveFlashRoom === item.id ? '#555' : (selectedIndex === i ? 'var(--color-text)' : 'var(--color-text-muted)')}; background: {selectedIndex === i ? 'var(--color-bg-element)' : (huddleLocalIdx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent')}; position: relative; {archiveFlashRoom === item.id ? 'opacity: 0.3;' : ''}"
+					>
+						<div>{fmt.label} &nbsp;{#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
+						{#if item.participants?.length}
+							<div style="font-size: 9px; line-height: 1.6; color: #666;">{#each item.participants as p, pi}{#if pi > 0}{', '}{/if}{#if isMutedInRoom(p, item.id) || isDeafInRoom(p, item.id)}{#if isMutedInRoom(p, item.id)}<LucideVolumeX width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;{/if}{#if isDeafInRoom(p, item.id)}<LucideEarOff width={9} height={9} style="color: #7a5e4a; display: inline; vertical-align: baseline;" />&nbsp;{/if}<span style="color: #7a5e4a;">{p}</span>{:else}{p}{/if}{/each}</div>
+						{/if}
+						<span class="sidebar-actions">
+							<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); archiveHuddle(item.id); }} title="Archive"><LucideArchive width={14} height={14} style="color: {archiveFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
+							<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); copyRoom(item.id); }} title="Copy"><LucideFiles width={14} height={14} style="color: {copyFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
+						</span>
+					</div>
+				{:else if nav.type === "bookmark"}
+					{@const bm = nav.bm}
+					{@const bmLocalIdx = navItems.slice(0, i).filter(n => n.type === "bookmark").length}
+					<div
+						data-nav-idx={i}
+						onclick={() => { selectedIndex = i; pendingScrollMessageId = bm.messageId; }}
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === i ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === i ? 'var(--color-bg-element)' : (bmLocalIdx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent')};"
 					>
 						{#if editingBookmarkId === bm.id}
 							<input
@@ -1140,24 +1178,15 @@
 							<div style="text-transform: lowercase;">{bm.name}</div>
 						{/if}
 					</div>
-				{/each}
-				</div>
-			{/if}
-
-			{#if sidebarItems.filter((x) => x.kind === "past").length > 0}
-				<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
-					<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
-				</div>
-				<div style="padding: 0.5rem 0 0.5rem 0;">
-				{#each sidebarItems.filter((x) => x.kind === "past") as item}
+				{:else if nav.type === "past"}
+					{@const item = nav.item}
 					{@const fmt = formatPastRoom(item.name)}
-					{@const pastNavIdx = sidebarItems.indexOf(item) + bookmarks.length}
 					{@const dateGroupIdx = pastDateGroupMap.get(item.id) ?? 0}
 					<div
 						class="sidebar-row"
-						data-nav-idx={pastNavIdx}
-						onclick={() => selectedIndex = pastNavIdx}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === pastNavIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === pastNavIdx ? 'var(--color-bg-element)' : (dateGroupIdx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent')}; position: relative;"
+						data-nav-idx={i}
+						onclick={() => selectedIndex = i}
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === i ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === i ? 'var(--color-bg-element)' : (dateGroupIdx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent')}; position: relative;"
 					>
 						<div>{fmt.label} &nbsp;{#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 						<span class="sidebar-actions">
@@ -1165,16 +1194,15 @@
 							<button class="sidebar-action-btn" onclick={(e) => { e.stopPropagation(); copyRoom(item.id); }} title="Copy"><LucideFiles width={14} height={14} style="color: {copyFlashRoom === item.id ? '#7a5e4a' : ''}" /></button>
 						</span>
 					</div>
-				{/each}
-				</div>
-			{/if}
+				{/if}
+			{/each}
 		{/if}
 		</div>
 	</div>
 
 	<!-- Gap col 2 -->
 	<div></div>
-	{#if selectedConvId}
+	{#if displayedConvId}
 		<!-- Chat column (col 3 — 570px) -->
 		<div style="position: relative; overflow: hidden;" class="flex flex-col">
 			<!-- Conversation area (scrollable) -->
@@ -1203,7 +1231,7 @@
 				</div>
 			</div>
 			<!-- Input bar -->
-			{#if currentRoomKind !== "past" && !selectedConvId?.startsWith("offline-")}
+			{#if currentRoomKind !== "past" && currentRoomKind !== "header" && !selectedConvId?.startsWith("offline-")}
 			<div style="position: absolute; bottom: 0; left: 0; right: 0; background: var(--color-bg);">
 			<!-- Control strip -->
 			<div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 0 12px;">
@@ -1372,7 +1400,7 @@
 	.sidebar-actions {
 		position: absolute;
 		right: 0;
-		top: 0;
+		top: 2px;
 		height: 1.4em;
 		opacity: 0.15;
 		transition: opacity 0.15s;
