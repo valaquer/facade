@@ -219,7 +219,7 @@
 		});
 	});
 
-	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; model?: string; participants?: string[]; online?: boolean };
+	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; model?: string; participants?: string[]; online?: boolean; group?: string };
 	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean; response?: boolean; summary?: string };
 	type Bookmark = { id: string; messageId: string; roomId: string; name: string; createdAt: string };
 
@@ -363,7 +363,7 @@
 			const responses = await Promise.all(fetches);
 			const data = await responses[0].json();
 			const prefs = isInitialLoad ? await responses[1].json() : null;
-			const teammates = (data.teammates ?? []).map((t: { id: string; name: string; model: string; online: boolean }) => ({ id: t.id, name: t.name, model: t.model || "", kind: "teammate" as const, online: t.online })).sort((a, b) => a.name.localeCompare(b.name));
+			const teammates = (data.teammates ?? []).map((t: { id: string; name: string; model: string; online: boolean; group?: string }) => ({ id: t.id, name: t.name, model: t.model || "", kind: "teammate" as const, online: t.online, group: t.group || "" }));
 			const currentHuddles: SidebarItem[] = (data.huddles ?? []).map((h: { id: string; name: string; host: string; participants: string[] }) => ({ id: h.id, name: h.name, kind: "huddle" as const, participants: h.participants }));
 			const pastItems: SidebarItem[] = (data.pastRooms ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, kind: "past" as const }));
 
@@ -808,6 +808,7 @@
 	}
 
 	let currentMessages = $derived(selectedConvId ? (conversations[selectedConvId] ?? []).filter((m) => !isTokenNoise(m)) : []);
+	let teammatesList = $derived(sidebarItems.filter((x) => x.kind === "teammate"));
 	let chatMessages = $derived(currentMessages.filter((m) => !m.toolCall && !m.response));
 	let activityCards = $derived(currentMessages.filter((m) => m.toolCall || m.response));
 	let isCurrentRoomPaused = $derived((selectedConvId?.startsWith("huddle-") && !stoppedHuddles.has(selectedConvId)) || pausedRoom === selectedConvId);
@@ -1056,7 +1057,10 @@
 				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
 			</div>
 			<div style="padding: 0.5rem 0 60px 0;">
-				{#each sidebarItems.filter((x) => x.kind === "teammate") as item}
+				{#each teammatesList as item, i}
+					{#if i === 0 || item.group !== teammatesList[i - 1].group}
+						<div style="display: flex; align-items: center; gap: 8px; padding: 0.4rem 1rem 0.2rem 1.5rem; font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; {i > 0 ? 'margin-top: 0.4rem;' : ''}"><span style="flex: 1; height: 1px; background: var(--color-bg-step4);"></span><span>{item.group || 'other'}</span><span style="flex: 1; height: 1px; background: var(--color-bg-step4);"></span></div>
+					{/if}
 					{@const fmt = formatPastRoom(item.id)}
 					<div
 						class="teammate-row{pulsingTeammates.includes(fmt.label) ? ' notification-pulse' : ''}"

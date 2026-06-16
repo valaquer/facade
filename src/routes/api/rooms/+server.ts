@@ -43,6 +43,32 @@ function loadRoster(): string[] {
 	}
 }
 
+function loadSidebarGroups(): { label: string; members: string[] }[] {
+	try {
+		const raw = fs.readFileSync(ORG_PATH, "utf-8");
+		const groups: { label: string; members: string[] }[] = [];
+		let inSection = false;
+		for (const line of raw.split("\n")) {
+			if (line.startsWith("## Sidebar Order")) {
+				inSection = true;
+				continue;
+			}
+			if (inSection && line.startsWith("## ")) break;
+			if (!inSection || !line.includes(":")) continue;
+			const colonIdx = line.indexOf(":");
+			const label = line.slice(0, colonIdx).trim();
+			const members = line
+				.slice(colonIdx + 1)
+				.split(",")
+				.map((m) => m.trim().toLowerCase());
+			if (label && members.length) groups.push({ label, members });
+		}
+		return groups;
+	} catch {
+		return [];
+	}
+}
+
 export const GET: RequestHandler = async () => {
 	const modelMap = loadModelMap();
 	const roster = loadRoster();
@@ -53,13 +79,26 @@ export const GET: RequestHandler = async () => {
 		const name = parseDisplayName(r.id);
 		roomByName[name] = r.id;
 	}
+	const sidebarGroups = loadSidebarGroups();
+	const memberToGroup: Record<string, { idx: number; label: string }> = {};
+	sidebarGroups.forEach((g, i) => {
+		g.members.forEach((m) => {
+			memberToGroup[m] = { idx: i, label: g.label };
+		});
+	});
 	const teammates = roster.map((name) => ({
 		id: roomByName[name] || `offline-${name}`,
 		name,
 		teammate: name,
 		model: modelMap[name] || "",
 		online: alive.has(name),
+		group: memberToGroup[name]?.label || "",
+		groupIdx: memberToGroup[name]?.idx ?? sidebarGroups.length,
 	}));
+	teammates.sort((a, b) => {
+		if (a.groupIdx !== b.groupIdx) return a.groupIdx - b.groupIdx;
+		return a.name.localeCompare(b.name);
+	});
 
 	const huddleRooms = getAllRooms().filter((r) => r.type === "huddle");
 	const huddles = huddleRooms.map((r) => ({
