@@ -219,7 +219,7 @@
 		});
 	});
 
-	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; model?: string; participants?: string[]; online?: boolean; group?: string };
+	type SidebarItem = { id: string; name: string; kind: "teammate" | "huddle" | "past"; model?: string; participants?: string[]; online?: boolean; group?: string; groupIdx?: number };
 	type ChatMsg = { id: string; sender: string; content: string; createdAt: string; toolCall?: boolean; response?: boolean; summary?: string };
 	type Bookmark = { id: string; messageId: string; roomId: string; name: string; createdAt: string };
 
@@ -363,7 +363,7 @@
 			const responses = await Promise.all(fetches);
 			const data = await responses[0].json();
 			const prefs = isInitialLoad ? await responses[1].json() : null;
-			const teammates = (data.teammates ?? []).map((t: { id: string; name: string; model: string; online: boolean; group?: string }) => ({ id: t.id, name: t.name, model: t.model || "", kind: "teammate" as const, online: t.online, group: t.group || "" }));
+			const teammates = (data.teammates ?? []).map((t: { id: string; name: string; model: string; online: boolean; group?: string; groupIdx?: number }) => ({ id: t.id, name: t.name, model: t.model || "", kind: "teammate" as const, online: t.online, group: t.group || "", groupIdx: t.groupIdx ?? 0 }));
 			const currentHuddles: SidebarItem[] = (data.huddles ?? []).map((h: { id: string; name: string; host: string; participants: string[] }) => ({ id: h.id, name: h.name, kind: "huddle" as const, participants: h.participants }));
 			const pastItems: SidebarItem[] = (data.pastRooms ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name, kind: "past" as const }));
 
@@ -809,6 +809,22 @@
 
 	let currentMessages = $derived(selectedConvId ? (conversations[selectedConvId] ?? []).filter((m) => !isTokenNoise(m)) : []);
 	let teammatesList = $derived(sidebarItems.filter((x) => x.kind === "teammate"));
+	function extractDate(name: string): string {
+		const m = name.match(/-(\d{8})-/);
+		return m ? m[1] : "";
+	}
+	let pastDateGroupMap = $derived.by(() => {
+		const pastItems = sidebarItems.filter((x) => x.kind === "past");
+		const map = new Map<string, number>();
+		let groupIdx = 0;
+		let lastDate = "";
+		for (const item of pastItems) {
+			const d = extractDate(item.id);
+			if (d !== lastDate) { if (lastDate) groupIdx++; lastDate = d; }
+			map.set(item.id, groupIdx);
+		}
+		return map;
+	});
 	let chatMessages = $derived(currentMessages.filter((m) => !m.toolCall && !m.response));
 	let activityCards = $derived(currentMessages.filter((m) => m.toolCall || m.response));
 	let isCurrentRoomPaused = $derived((selectedConvId?.startsWith("huddle-") && !stoppedHuddles.has(selectedConvId)) || pausedRoom === selectedConvId);
@@ -1058,15 +1074,12 @@
 			</div>
 			<div style="padding: 0.5rem 0 60px 0;">
 				{#each teammatesList as item, i}
-					{#if i === 0 || item.group !== teammatesList[i - 1].group}
-						<div style="display: flex; align-items: center; gap: 8px; padding: 0.4rem 1rem 0.2rem 1.5rem; font-size: 9px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; {i > 0 ? 'margin-top: 0.4rem;' : ''}"><span style="flex: 1; height: 1px; background: var(--color-bg-step4);"></span><span>{item.group || 'other'}</span><span style="flex: 1; height: 1px; background: var(--color-bg-step4);"></span></div>
-					{/if}
 					{@const fmt = formatPastRoom(item.id)}
 					<div
 						class="teammate-row{pulsingTeammates.includes(fmt.label) ? ' notification-pulse' : ''}"
 						data-nav-idx={sidebarItems.indexOf(item)}
 						onclick={() => { if (pulsingTeammates.includes(fmt.label)) { pulsingTeammates = pulsingTeammates.filter(n => n !== fmt.label); fetch("/api/dismiss-pulse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teammate: fmt.label }) }).catch(() => {}); } selectedIndex = sidebarItems.indexOf(item); }}
-						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {pulsingTeammates.includes(fmt.label) ? '' : (selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)')}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {pulsingTeammates.includes(fmt.label) ? '' : (selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)')}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : ((item.groupIdx ?? 0) % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)')}; position: relative;"
 					>
 						<div><span class="teammate-led" style="display: inline-block; width: 4px; height: 4px; border-radius: 50%; margin-right: 6px; vertical-align: middle; background: {item.online ? '#4ade80' : '#555'}; {item.online ? 'box-shadow: 0 0 4px #4ade80, 0 0 8px #4ade8066;' : ''}"></span><span style="{item.online ? '' : 'color: #555; opacity: 0.35;'}">{fmt.label}</span> {#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if} {#if item.model} <span class="sidebar-meta" style="font-size: 9px; color: #666; font-family: Menlo, monospace; font-weight: bold;">{item.model}</span>{/if}</div>
 						{#if item.online}<span class="sidebar-actions">
@@ -1081,13 +1094,13 @@
 				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
 			</div>
 			<div style="padding: 0.5rem 0 60px 0;">
-			{#each sidebarItems.filter((x) => x.kind === "huddle") as item}
+			{#each sidebarItems.filter((x) => x.kind === "huddle") as item, hi}
 				{@const fmt = formatPastRoom(item.id)}
 				<div
 					class="sidebar-row"
 					data-nav-idx={sidebarItems.indexOf(item)}
 					onclick={() => selectedIndex = sidebarItems.indexOf(item)}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
+					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === sidebarItems.indexOf(item) ? 'var(--color-bg-element)' : (hi % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent')}; position: relative;"
 				>
 					<div>{fmt.label} &nbsp;{#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 					{#if item.participants?.length}
@@ -1111,7 +1124,7 @@
 					<div
 						data-nav-idx={navIdx}
 						onclick={() => { selectedIndex = navIdx; pendingScrollMessageId = bm.messageId; }}
-						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === navIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === navIdx ? 'var(--color-bg-element)' : 'transparent'};"
+						style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === navIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === navIdx ? 'var(--color-bg-element)' : (bmIdx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent')};"
 					>
 						{#if editingBookmarkId === bm.id}
 							<input
@@ -1139,11 +1152,12 @@
 				{#each sidebarItems.filter((x) => x.kind === "past") as item}
 					{@const fmt = formatPastRoom(item.name)}
 					{@const pastNavIdx = sidebarItems.indexOf(item) + bookmarks.length}
+					{@const dateGroupIdx = pastDateGroupMap.get(item.id) ?? 0}
 					<div
 						class="sidebar-row"
 						data-nav-idx={pastNavIdx}
 						onclick={() => selectedIndex = pastNavIdx}
-					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === pastNavIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === pastNavIdx ? 'var(--color-bg-element)' : 'transparent'}; position: relative;"
+					style="padding: 0 1rem 0 1.5rem; cursor: pointer; color: {selectedIndex === pastNavIdx ? 'var(--color-text)' : 'var(--color-text-muted)'}; background: {selectedIndex === pastNavIdx ? 'var(--color-bg-element)' : (dateGroupIdx % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent')}; position: relative;"
 					>
 						<div>{fmt.label} &nbsp;{#if fmt.date}<span class="sidebar-meta" style="font-size: 9px; color: #666;">{fmt.date}</span>{/if}</div>
 						<span class="sidebar-actions">
