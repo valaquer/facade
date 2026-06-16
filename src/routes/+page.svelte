@@ -1400,7 +1400,7 @@
 	.sidebar-actions {
 		position: absolute;
 		right: 0;
-		top: 2px;
+		top: 4px;
 		height: 1.4em;
 		opacity: 0.15;
 		transition: opacity 0.15s;
