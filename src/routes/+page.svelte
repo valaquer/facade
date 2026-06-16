@@ -1069,10 +1069,10 @@
 	<div style="background: var(--color-bg-panel); border-right: 1px dashed var(--color-bg-step4); display: flex; flex-direction: column; height: 100vh; visibility: {focusMode ? 'hidden' : 'visible'};">
 		<div style="flex: 1; overflow-y: auto; font-family: var(--font-sans);">
 		{#if sidebarLoaded}
-			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
+			<div style="padding: 1rem 1rem 1rem 1.5rem; border-top: 1px dashed var(--color-bg-step4); border-bottom: 1px dashed var(--color-bg-step4);">
 				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Teammates</p>
 			</div>
-			<div style="padding: 0.5rem 0 60px 0;">
+			<div style="padding: 0.5rem 0 0.5rem 0;">
 				{#each teammatesList as item, i}
 					{@const fmt = formatPastRoom(item.id)}
 					<div
@@ -1090,10 +1090,10 @@
 				{/each}
 			</div>
 
-			<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
+			<div style="padding: 1rem 1rem 1rem 1.5rem; border-top: 1px dashed var(--color-bg-step4); border-bottom: 1px dashed var(--color-bg-step4);">
 				<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Huddles</p>
 			</div>
-			<div style="padding: 0.5rem 0 60px 0;">
+			<div style="padding: 0.5rem 0 0.5rem 0;">
 			{#each sidebarItems.filter((x) => x.kind === "huddle") as item, hi}
 				{@const fmt = formatPastRoom(item.id)}
 				<div
@@ -1118,7 +1118,7 @@
 				<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
 					<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Bookmarks</p>
 				</div>
-				<div style="padding: 0.5rem 0 60px 0;">
+				<div style="padding: 0.5rem 0 0.5rem 0;">
 				{#each bookmarks as bm, bmIdx}
 					{@const navIdx = preBookmarkCount + bmIdx}
 					<div
@@ -1148,7 +1148,7 @@
 				<div style="padding: 1rem 1rem 1rem 1.5rem; border-bottom: 1px dashed var(--color-bg-step4);">
 					<p style="display: inline-block; font-size: 13px; font-weight: 500; font-family: var(--font-sans); background: var(--gradient-accent); background-repeat: no-repeat; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Past Rooms</p>
 				</div>
-				<div style="padding: 0.5rem 0 60px 0;">
+				<div style="padding: 0.5rem 0 0.5rem 0;">
 				{#each sidebarItems.filter((x) => x.kind === "past") as item}
 					{@const fmt = formatPastRoom(item.name)}
 					{@const pastNavIdx = sidebarItems.indexOf(item) + bookmarks.length}
