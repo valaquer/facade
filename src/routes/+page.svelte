@@ -1299,7 +1299,7 @@
 				<button class="control-btn" onclick={() => window.open('/markwhen-fork.html', '_blank')} title="Timeline">
 					<LucideMilestone width={14} height={14} style="color: #555;" />
 				</button>
-				<button class="control-btn" onclick={() => window.open('http://192.168.0.186:51740/styleguide', '_blank')} title="Workbench">
+				<button class="control-btn" onclick={() => window.open('http://192.168.0.186:51740', '_blank')} title="Workbench">
 					<LucideConstruction width={14} height={14} style="color: #555;" />
 				</button>
 				<button class="control-btn" onclick={nukeAll} disabled={nuking} title="Nuke — close all teammates and huddles">
