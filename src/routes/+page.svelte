@@ -19,6 +19,7 @@
 	import LucideMilestone from '~icons/lucide/milestone';
 	import LucideConstruction from '~icons/lucide/construction';
 	import LucidePower from '~icons/lucide/power';
+	import LucideGhost from '~icons/lucide/ghost';
 
 	marked.setOptions({ breaks: true, gfm: true });
 
@@ -305,25 +306,23 @@
 	let rekindleFlash = $state(false);
 	let zombieCount = $state(0);
 	let pulsingTeammates = $state<string[]>([]);
-	let activeAccount = $state("gmail");
-	let switching = $state(false);
+	let activeAccount = $state("?");
+	let zombifying = $state(false);
 	async function fetchActiveAccount() {
 		try {
 			const r = await fetch("/api/account-switch");
-			if (r.ok) { const d = await r.json(); activeAccount = d.account ?? "gmail"; }
+			if (r.ok) { const d = await r.json(); activeAccount = d.account === "oovar" ? "O" : d.account === "gmail" ? "G" : "?"; }
 		} catch {}
 	}
-	async function switchAccount() {
-		if (switching) return;
-		switching = true;
+	async function makeZombies() {
+		if (zombifying) return;
+		zombifying = true;
 		try {
 			const res = await fetch("/api/account-switch", { method: "POST" });
 			if (!res.ok) throw new Error();
-			const data = await res.json();
-			activeAccount = data.account;
 			await fetchZombieCount();
 		} catch {} finally {
-			switching = false;
+			zombifying = false;
 		}
 	}
 	async function fetchZombieCount() {
@@ -1277,8 +1276,11 @@
 				<button class="control-btn" onclick={sendPauseMessage} disabled={pausing} title="Pause — alert room">
 					<LucideX width={18} height={18} style="color: {pauseError ? '#e74c3c' : '#555'};" />
 				</button>
-				<button class="control-btn" onclick={switchAccount} disabled={switching} title="Switch account — kill all tabs + flip to {activeAccount === 'oovar' ? 'gmail' : 'oovar'}">
-					<span style="font-family: var(--font-sans); font-size: 14px; color: {switching ? '#7a5e4a' : '#555'};">{activeAccount === 'oovar' ? 'O' : 'G'}</span>
+				<span class="control-btn" title="Active account: {activeAccount === 'G' ? 'Gmail' : activeAccount === 'O' ? 'Oovar' : 'Unknown'}">
+					<span style="font-family: var(--font-sans); font-size: 14px; color: #555;">{activeAccount}</span>
+				</span>
+				<button class="control-btn" onclick={makeZombies} disabled={zombifying} title="Ghost — kill all tabs, preserve rooms">
+					<LucideGhost width={14} height={14} style="color: {zombifying ? '#7a5e4a' : '#555'};" />
 				</button>
 				<button class="control-btn" onclick={rekindleZombies} disabled={rekindling} title="Rekindle — relight all zombie rooms">
 					<span class={rekindleFlash || zombieCount > 0 ? 'zap-active' : ''}><LucideZap width={14} height={14} style="color: {rekindleFlash || zombieCount > 0 ? '#7a5e4a' : '#555'};" /></span>

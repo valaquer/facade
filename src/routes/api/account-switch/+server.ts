@@ -1,36 +1,39 @@
 import type { RequestHandler } from "./$types";
-import { readFileSync, writeFileSync } from "fs";
 import { getAliveTeammates, closeKittyTab } from "$lib/server/kitten";
-import { execFile } from "child_process";
+import { getRoomsByType } from "$lib/server/facade-db";
+import { endHuddle } from "$lib/server/huddle-helpers";
+import { execFile, execSync } from "child_process";
 import { promisify } from "util";
 
 const execFileAsync = promisify(execFile);
 
-const FLAG_FILE = "/Users/d.patnaik/honeybloom/library/facade/active-account";
 const SSH_KEY = "/Users/d.patnaik/.ssh/id_hanover";
 const MINI_USER = "deepak-macmini";
 const MINI_HOST = "192.168.0.186";
 
-function readActiveAccount(): string {
-	try {
-		return readFileSync(FLAG_FILE, "utf-8").trim();
-	} catch {
-		return "gmail";
-	}
-}
-
-// GET — returns current active account
+// GET — auto-detect active account from claude auth status
 export const GET: RequestHandler = async () => {
-	return new Response(JSON.stringify({ account: readActiveAccount() }), {
+	let account = "unknown";
+	try {
+		const raw = execSync(
+			"env -u CLAUDE_CODE_OAUTH_TOKEN /Users/d.patnaik/.local/bin/claude auth status 2>&1",
+			{
+				timeout: 5000,
+				encoding: "utf-8",
+			}
+		);
+		const parsed = JSON.parse(raw);
+		const email = (parsed.email ?? "").toLowerCase();
+		if (email.includes("oovar")) account = "oovar";
+		else if (email.includes("gmail")) account = "gmail";
+	} catch {}
+	return new Response(JSON.stringify({ account }), {
 		headers: { "Content-Type": "application/json" },
 	});
 };
 
-// POST — kill all tabs, flip account, return new account
+// POST — kill all Kitty tabs (iMac + Mini), preserve Facade rooms
 export const POST: RequestHandler = async () => {
-	const current = readActiveAccount();
-	const next = current === "oovar" ? "gmail" : "oovar";
-
 	// Step 1: Kill all Kitty tabs on iMac (without archiving rooms)
 	const alive = await getAliveTeammates();
 	const killPromises: Promise<boolean>[] = [];
@@ -59,10 +62,17 @@ export const POST: RequestHandler = async () => {
 		// Mini may be off or have no processes — not fatal
 	}
 
-	// Step 3: Flip the flag file
-	writeFileSync(FLAG_FILE, next);
+	// Step 3: Archive all active huddles
+	const huddles = getRoomsByType("huddle");
+	for (const huddle of huddles) {
+		try {
+			endHuddle(huddle.id);
+		} catch {
+			// Per-huddle try-catch — one failure doesn't block the rest
+		}
+	}
 
-	return new Response(JSON.stringify({ account: next, killed: [...alive] }), {
+	return new Response(JSON.stringify({ killed: [...alive] }), {
 		headers: { "Content-Type": "application/json" },
 	});
 };
