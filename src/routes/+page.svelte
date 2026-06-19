@@ -303,7 +303,14 @@
 	let rekindleFlash = $state(false);
 	let zombieCount = $state(0);
 	let pulsingTeammates = $state<string[]>([]);
+	let activeAccount = $state("?");
 	let zombifying = $state(false);
+	async function fetchActiveAccount() {
+		try {
+			const r = await fetch("/api/account-switch");
+			if (r.ok) { const d = await r.json(); activeAccount = d.account === "oovar" ? "O" : d.account === "gmail" ? "G" : "?"; }
+		} catch {}
+	}
 	async function makeZombies() {
 		if (zombifying) return;
 		zombifying = true;
@@ -677,6 +684,7 @@
 			fetch("/api/activity-deaf").then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {}),
 			fetch("/api/pulse").then(r => r.json()).then(d => { if (d.pending?.length) { pulsingTeammates = d.pending.map((p: {teammate: string}) => p.teammate); } }).catch(() => {}),
 			fetchZombieCount(),
+			fetchActiveAccount(),
 		]).then(() => {
 			// Force room-switch $effect to re-run and load messages
 			prevRoom = "";
@@ -703,6 +711,7 @@
 		fetch("/api/activity-deaf").then(r => r.json()).then(d => { deafEntries = d; }).catch(() => {});
 		fetch("/api/pulse").then(r => r.json()).then(d => { if (d.pending?.length) { pulsingTeammates = d.pending.map((p: {teammate: string}) => p.teammate); } }).catch(() => {});
 		fetchZombieCount();
+		fetchActiveAccount();
 		connectEventSource();
 		pulsePoller = setInterval(() => {
 			fetch("/api/pulse").then(r => r.json()).then(d => {
@@ -1236,6 +1245,9 @@
 				<button class="control-btn" onclick={sendPauseMessage} disabled={pausing} title="Pause — alert room">
 					<LucideX width={18} height={18} style="color: {pauseError ? '#e74c3c' : '#555'};" />
 				</button>
+				<span class="control-btn" title="Active account: {activeAccount === 'G' ? 'Gmail' : activeAccount === 'O' ? 'Oovar' : 'Unknown'}">
+					<span style="font-family: var(--font-sans); font-size: 14px; color: #555;">{activeAccount}</span>
+				</span>
 				<button class="control-btn" onclick={makeZombies} disabled={zombifying} title="Ghost — kill all tabs, preserve rooms">
 					<LucideGhost width={14} height={14} style="color: {zombifying ? '#7a5e4a' : '#555'};" />
 				</button>
